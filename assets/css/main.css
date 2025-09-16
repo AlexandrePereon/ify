@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .spotify-button {
+    @apply bg-green-500 hover:bg-green-400 text-black font-semibold py-3 px-6 rounded-full transition-all duration-200 flex items-center justify-center space-x-2;
+  }
+
+  .spotify-button:hover {
+    @apply scale-105;
+  }
+
+  .spotify-button:disabled {
+    @apply opacity-50 cursor-not-allowed;
+  }
+
+  .spotify-button-secondary {
+    @apply bg-transparent border border-gray-500 hover:border-white text-white font-semibold py-3 px-6 rounded-full transition-all duration-200;
+  }
+
+  .spotify-input {
+    @apply bg-gray-800 border border-gray-600 text-white placeholder-gray-400 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent;
+  }
+
+  .spotify-main {
+    @apply bg-gradient-to-b from-gray-800 to-black min-h-screen;
+  }
+}
