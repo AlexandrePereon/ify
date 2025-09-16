@@ -9,7 +9,7 @@
             class="text-gray-400 hover:text-white transition-colors flex items-center space-x-2"
           >
             <Icon name="heroicons:arrow-left" class="w-4 h-4" />
-            <span>Retour</span>
+            <span>Back</span>
           </NuxtLink>
         </div>
 
@@ -82,11 +82,26 @@
 </template>
 
 <script setup lang="ts">
+// Auth check - redirect if already authenticated
+const { status } = useAuth()
+
+// Redirect authenticated users to create their own group
+watch(status, async (newStatus) => {
+  if (newStatus === 'authenticated') {
+    await navigateTo('/')
+  }
+}, { immediate: true })
+
+// If already authenticated on page load, redirect immediately
+if (process.client && status.value === 'authenticated') {
+  await navigateTo('/')
+}
+
 // Metadata
 useHead({
-  title: 'Rejoindre un groupe - IFY',
+  title: 'Join a Group - IFY',
   meta: [
-    { name: 'description', content: 'Rejoignez un groupe d\'écoute Spotify avec un code' }
+    { name: 'description', content: 'Join a Spotify listening group with a code' }
   ]
 })
 
@@ -109,7 +124,6 @@ const joinGroup = async () => {
 
   try {
     // TODO: Implement join group logic
-    console.log('Joining group:', groupCode.value)
 
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1500))
@@ -117,8 +131,7 @@ const joinGroup = async () => {
     // Navigate to group page (will be implemented later)
     await navigateTo(`/group/${groupCode.value.trim().toLowerCase()}`)
   } catch (err) {
-    error.value = 'Groupe introuvable ou code invalide'
-    console.error('Erreur en rejoignant le groupe:', err)
+    error.value = 'Group not found or invalid code'
   } finally {
     joining.value = false
   }

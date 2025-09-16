@@ -67,12 +67,12 @@ Application de groupe d'écoute Spotify avec contrôle collaboratif via WebSocke
   - `/join/[code]` - Page de rejoindre un groupe
 
 - [ ] **Composants**
-  - `SpotifyAuth` - Bouton de connexion
-  - `CurrentTrack` - Affichage musique actuelle
-  - `QueueList` - Liste de la queue
-  - `AddTrack` - Recherche et ajout de musiques
+  - `SpotifyAuth` - Bouton de connexion ✅
+  - `SearchBar` - Barre recherche avec dropdown résultats (loupe + croix)
+  - `CurrentTrack` - Affichage centré (image → titre → artiste)
+  - `NextButton` - Bouton de contrôle next/skip
+  - `QueueDrawer` - Drawer animé (slide-up 70%) avec bouton liste
   - `MembersList` - Liste des membres avec options admin
-  - `VoteSkip` - Bouton et compteur de votes
   - `QRCodeShare` - Génération et affichage du QR code
 
 ### Base de données (en mémoire pour MVP)
@@ -90,31 +90,37 @@ Application de groupe d'écoute Spotify avec contrôle collaboratif via WebSocke
 
 ## 🚀 Phases de développement
 
-### Phase 1: Foundation & Setup
-- [ ] Downgrade vers Nuxt 3 pour compatibilité
-- [ ] Installation des dépendances compatibles
-- [ ] Configuration TailwindCSS + mode sombre
-- [ ] Structure de base du projet
+### Phase 1: Foundation & Setup ✅
+- [x] Downgrade vers Nuxt 3 pour compatibilité
+- [x] Installation des dépendances compatibles
+- [x] Configuration TailwindCSS + mode sombre
+- [x] Structure de base du projet
 
-### Phase 2: Authentication & Groups
-- [ ] Setup Spotify OAuth avec @sidebase/nuxt-auth
-- [ ] Interface de connexion
-- [ ] Création et gestion des groupes
-- [ ] Système d'invitation avec codes
+### Phase 2: Authentication & Groups ✅
+- [x] Setup Spotify OAuth avec @sidebase/nuxt-auth
+- [x] Interface de connexion
+- [x] Création et gestion des groupes
+- [x] Système d'invitation avec codes
 
-### Phase 3: Core Features
+### Phase 3: Interface Components (En cours)
+- [ ] Composant SearchBar avec recherche Spotify live
+- [ ] Composant CurrentTrack design mobile-first
+- [ ] Composant NextButton avec gestion votes
+- [ ] Composant QueueDrawer avec animations
+- [ ] Refactoring page groupe avec nouveaux composants
+
+### Phase 4: Core Features
 - [ ] WebSocket setup avec nuxt-socket-io
-- [ ] Affichage musique actuelle + queue
+- [ ] Intégration API Spotify temps réel
 - [ ] Ajout de musiques à la queue
-- [ ] Interface mobile-first
-
-### Phase 4: Collaboration
 - [ ] Système de votes pour skip
+
+### Phase 5: Collaboration
 - [ ] Gestion des membres (expulsion)
 - [ ] Synchronisation temps réel
 - [ ] QR Code pour partage
 
-### Phase 5: Polish
+### Phase 6: Polish
 - [ ] Gestion d'erreurs robuste
 - [ ] Tests et optimisations
 - [ ] Historique des écoutes

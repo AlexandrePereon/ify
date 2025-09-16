@@ -1,9 +1,4 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
-console.log('🚀 NUXT CONFIG DEBUG:')
-console.log('- AUTH_ORIGIN:', process.env.AUTH_ORIGIN)
-console.log('- NUXT_AUTH_SECRET:', process.env.NUXT_AUTH_SECRET ? '✅ Set' : '❌ Missing')
-console.log('- NUXT_SPOTIFY_CLIENT_ID:', process.env.NUXT_SPOTIFY_CLIENT_ID ? '✅ Set' : '❌ Missing')
-console.log('- NUXT_SPOTIFY_CLIENT_SECRET:', process.env.NUXT_SPOTIFY_CLIENT_SECRET ? '✅ Set' : '❌ Missing')
 
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
@@ -22,13 +17,13 @@ export default defineNuxtConfig({
   css: ['~/assets/css/main.css'],
 
   auth: {
-    baseURL: '/api/auth',
     provider: {
       type: 'authjs'
     }
   },
 
   runtimeConfig: {
+    authOrigin: process.env.NUXT_AUTH_ORIGIN,
     authSecret: process.env.NUXT_AUTH_SECRET,
     spotifyClientId: process.env.NUXT_SPOTIFY_CLIENT_ID,
     spotifyClientSecret: process.env.NUXT_SPOTIFY_CLIENT_SECRET,
@@ -39,7 +34,7 @@ export default defineNuxtConfig({
 
   app: {
     head: {
-      title: 'IFY - Spotify Group Listening',
+      title: 'IFY - Listen to Spotify Together',
       meta: [
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },

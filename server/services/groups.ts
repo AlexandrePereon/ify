@@ -1,4 +1,6 @@
 import { v4 as uuidv4 } from 'uuid'
+// Import will be added when polling service is ready
+// import { spotifyPollingService } from './spotify-polling'
 
 interface Group {
   id: string
@@ -8,6 +10,10 @@ interface Group {
     id: string
     name: string
     image?: string
+    spotifyTokens: {
+      accessToken: string
+      refreshToken: string
+    }
   }
   members: Array<{
     id: string
@@ -15,16 +21,7 @@ interface Group {
     image?: string
     joinedAt: Date
   }>
-  queue: Array<{
-    id: string
-    name: string
-    artists: string[]
-    album: string
-    image?: string
-    uri: string
-    addedBy: string
-    addedAt: Date
-  }>
+  // Note: We use Spotify's native queue, not our own
   currentTrack: any | null
   votes: {
     skip: string[] // user IDs
@@ -54,7 +51,7 @@ export class GroupService {
   }
 
   // Create new group
-  createGroup(admin: { id: string; name: string; image?: string }, name?: string): Group {
+  createGroup(admin: { id: string; name: string; image?: string; spotifyTokens: { accessToken: string; refreshToken: string } }, name?: string): Group {
     const id = uuidv4()
     const code = this.generateCode()
 
@@ -64,10 +61,11 @@ export class GroupService {
       name: name || `Groupe de ${admin.name}`,
       admin,
       members: [{
-        ...admin,
+        id: admin.id,
+        name: admin.name,
+        image: admin.image,
         joinedAt: new Date()
       }],
-      queue: [],
       currentTrack: null,
       votes: { skip: [] },
       createdAt: new Date(),
@@ -76,6 +74,9 @@ export class GroupService {
 
     groups.set(id, group)
     codeToGroupId.set(code, id)
+
+    // TODO: Start Spotify polling for this group
+    // spotifyPollingService.startPolling(id)
 
     return group
   }
@@ -124,6 +125,8 @@ export class GroupService {
 
     // If admin leaves, delete group
     if (group.admin.id === userId) {
+      // TODO: Stop Spotify polling for this group
+      // spotifyPollingService.stopPolling(groupId)
       groups.delete(groupId)
       codeToGroupId.delete(group.code)
       return true
@@ -131,6 +134,8 @@ export class GroupService {
 
     // If no members left, delete group
     if (group.members.length === 0) {
+      // TODO: Stop Spotify polling for this group
+      // spotifyPollingService.stopPolling(groupId)
       groups.delete(groupId)
       codeToGroupId.delete(group.code)
     }
@@ -139,24 +144,10 @@ export class GroupService {
     return true
   }
 
-  // Add track to queue
-  addTrackToQueue(groupId: string, track: any, userId: string): boolean {
+  // Get admin's Spotify tokens for API calls
+  getAdminTokens(groupId: string): { accessToken: string; refreshToken: string } | null {
     const group = groups.get(groupId)
-    if (!group || !group.members.some(m => m.id === userId)) return false
-
-    group.queue.push({
-      id: track.id,
-      name: track.name,
-      artists: track.artists.map((a: any) => a.name),
-      album: track.album.name,
-      image: track.album.images?.[0]?.url,
-      uri: track.uri,
-      addedBy: userId,
-      addedAt: new Date()
-    })
-
-    group.lastActivity = new Date()
-    return true
+    return group?.admin.spotifyTokens || null
   }
 
   // Vote to skip
