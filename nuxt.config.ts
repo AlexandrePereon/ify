@@ -12,7 +12,8 @@ export default defineNuxtConfig({
     '@nuxt/image',
     '@nuxtjs/tailwindcss',
     'nuxt-qrcode',
-    '@sidebase/nuxt-auth'
+    '@sidebase/nuxt-auth',
+    '@nuxtjs/device'
   ],
 
   css: ['~/assets/css/main.css'],

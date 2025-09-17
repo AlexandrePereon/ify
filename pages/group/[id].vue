@@ -1,8 +1,8 @@
 <template>
   <div class="spotify-main h-screen overflow-hidden">
-    <div class="container mx-auto px-4 py-4 max-w-lg h-full flex flex-col">
+    <div class="container mx-auto px-4 py-2 max-w-lg h-full flex flex-col">
       <!-- Search Bar with Disconnect Button -->
-      <div class="flex items-center gap-3 mb-4 flex-shrink-0">
+      <div class="flex items-center gap-3 mb-2 flex-shrink-0">
         <div class="flex-1">
           <SearchBar
             :group-id="groupId"
@@ -19,7 +19,7 @@
       </div>
 
       <!-- Current Track Display -->
-      <div class="flex-1 flex flex-col justify-center">
+      <div class="flex items-center justify-center py-4">
         <CurrentTrack
           :track="currentTrack"
           :loading="trackLoading"
@@ -27,7 +27,7 @@
       </div>
 
       <!-- Next Button -->
-      <div class="flex justify-center pb-4 flex-shrink-0">
+      <div class="flex justify-center pb-2 flex-shrink-0">
         <NextButton
           :group-id="groupId"
           :skip-votes="skipVotes"
