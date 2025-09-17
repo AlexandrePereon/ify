@@ -1,22 +1,43 @@
 <template>
   <div class="flex flex-col items-center space-y-4">
     <!-- Main Next Button -->
-    <ActionButton
-      :loading="loading"
-      :disabled="disabled"
-      variant="primary"
-      size="large"
-      icon="heroicons:forward"
-      text="Next"
+    <button
+      :disabled="disabled || loading"
+      :class="[
+        'relative flex items-center justify-center',
+        'px-6 py-3 rounded-full font-semibold text-base',
+        'bg-green-500 hover:bg-green-400 text-black',
+        'shadow-lg hover:shadow-xl',
+        'transition-all duration-200 transform',
+        'focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-black',
+        'disabled:opacity-50 disabled:cursor-not-allowed',
+        loading ? 'cursor-wait' : 'hover:scale-105'
+      ]"
       @click="handleNext"
-    />
+    >
+      <Icon
+        v-if="!loading"
+        name="heroicons:forward"
+        class="w-5 h-5 mr-2"
+      />
+      <Icon
+        v-else
+        name="heroicons:arrow-path"
+        class="w-5 h-5 mr-2 animate-spin"
+      />
+      {{ loading ? 'Processing...' : 'Next' }}
+    </button>
     
     <!-- Vote Counter (shown when votes are active) -->
-    <VoteCounter
+    <div
       v-if="showVoteCounter"
-      :votes="skipVotes"
-      :total="totalMembers"
-    />
+      class="flex items-center space-x-2 px-4 py-2 bg-gray-800 rounded-full border border-gray-600"
+    >
+      <Icon name="heroicons:hand-raised" class="w-4 h-4 text-orange-400" />
+      <span class="text-sm text-gray-300">
+        {{ skipVotes }}/{{ Math.ceil(totalMembers / 2) }} votes to skip
+      </span>
+    </div>
     
     <!-- Status Message -->
     <p v-if="statusMessage" class="text-sm text-gray-400 text-center max-w-xs">

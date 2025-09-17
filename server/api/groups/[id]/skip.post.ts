@@ -32,7 +32,11 @@ export default defineEventHandler(async (event) => {
       const tokens = groupService.getAdminTokens(groupId)
       if (tokens) {
         // Use admin's tokens to skip track
-        const spotifyService = new SpotifyService(tokens.accessToken)
+        const spotifyService = new SpotifyService(
+          tokens.accessToken, 
+          tokens.refreshToken, 
+          groupId
+        )
         await spotifyService.skipToNext()
         
         // Clear votes after successful skip

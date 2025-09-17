@@ -1,12 +1,11 @@
 <template>
-  <div class="flex flex-col items-center text-center py-8">
+  <div class="flex flex-col items-center text-center py-4">
     <!-- Track Image Component -->
-    <div class="mb-6">
+    <div class="mb-4">
       <TrackImage
         :image-url="track?.album?.images?.[0]?.url"
         :alt="track?.name"
         :size="size"
-        :is-playing="isPlaying"
         :loading="loading"
         placeholder-text="No track playing"
       />
@@ -38,7 +37,6 @@ interface Track {
 
 interface Props {
   track?: Track | null
-  isPlaying?: boolean
   loading?: boolean
   size?: 'small' | 'medium' | 'large'
   showDetails?: boolean
@@ -46,7 +44,6 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   track: null,
-  isPlaying: false,
   loading: false,
   size: 'large',
   showDetails: true

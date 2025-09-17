@@ -14,6 +14,7 @@ export default defineEventHandler(async (event) => {
 
     // Get admin's Spotify tokens
     const tokens = groupService.getAdminTokens(groupId)
+    
     if (!tokens) {
       throw createError({
         statusCode: 404,
@@ -22,18 +23,23 @@ export default defineEventHandler(async (event) => {
     }
 
     // Use admin's tokens to get current playback
-    const spotifyService = new SpotifyService(tokens.accessToken)
+    const spotifyService = new SpotifyService(
+      tokens.accessToken, 
+      tokens.refreshToken, 
+      groupId
+    )
+    
     const playback = await spotifyService.getCurrentPlayback()
 
     return {
       success: true,
-      currentTrack: playback?.item || null,
-      isPlaying: playback?.is_playing || false
+      currentTrack: playback?.item || null
     }
   } catch (error) {
+    console.error('Current track error:', error)
     throw createError({
       statusCode: 500,
-      statusMessage: 'Failed to get current track'
+      statusMessage: `Failed to get current track: ${error.message || error}`
     })
   }
 })

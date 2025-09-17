@@ -30,7 +30,11 @@ export default defineEventHandler(async (event) => {
     }
 
     // Use admin's tokens to search Spotify
-    const spotifyService = new SpotifyService(tokens.accessToken)
+    const spotifyService = new SpotifyService(
+      tokens.accessToken, 
+      tokens.refreshToken, 
+      groupId
+    )
     const tracks = await spotifyService.searchTracks(query.q as string, 20)
 
     return {
@@ -38,9 +42,10 @@ export default defineEventHandler(async (event) => {
       tracks
     }
   } catch (error) {
+    console.error('Search API error:', error)
     throw createError({
       statusCode: 500,
-      statusMessage: 'Search failed'
+      statusMessage: `Search failed: ${error.message || error}`
     })
   }
 })

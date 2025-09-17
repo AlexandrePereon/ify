@@ -1,6 +1,6 @@
 <template>
-  <div class="spotify-main">
-    <div class="container mx-auto px-4 py-16">
+  <div class="spotify-main h-screen overflow-hidden">
+    <div class="container mx-auto px-4 py-16 h-full">
       <div class="max-w-md mx-auto text-center">
         <!-- Logo/Title -->
         <div class="mb-12">

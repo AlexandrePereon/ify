@@ -20,7 +20,6 @@
     <TrackDetails 
       v-if="track && showDetails"
       :album="track.album?.name"
-      :duration="track.duration_ms"
       :size="size"
     />
   </div>

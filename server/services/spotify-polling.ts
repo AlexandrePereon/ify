@@ -6,6 +6,7 @@ interface GroupPollingData {
   intervalId: NodeJS.Timeout
   lastTrackId: string | null
   lastPlaybackState: any
+  lastQueue: any[]
 }
 
 class SpotifyPollingService {
@@ -19,7 +20,6 @@ class SpotifyPollingService {
       return
     }
 
-    console.log(`Starting Spotify polling for group: ${groupId}`)
 
     const intervalId = setInterval(async () => {
       await this.pollSpotifyForGroup(groupId)
@@ -29,7 +29,8 @@ class SpotifyPollingService {
       groupId,
       intervalId,
       lastTrackId: null,
-      lastPlaybackState: null
+      lastPlaybackState: null,
+      lastQueue: []
     })
   }
 
@@ -37,7 +38,6 @@ class SpotifyPollingService {
   stopPolling(groupId: string) {
     const pollData = this.activePolls.get(groupId)
     if (pollData) {
-      console.log(`Stopping Spotify polling for group: ${groupId}`)
       clearInterval(pollData.intervalId)
       this.activePolls.delete(groupId)
     }
@@ -55,33 +55,36 @@ class SpotifyPollingService {
       }
 
       // Create Spotify service with admin's tokens
-      const spotifyService = new SpotifyService(tokens.accessToken)
+      const spotifyService = new SpotifyService(
+        tokens.accessToken, 
+        tokens.refreshToken, 
+        groupId
+      )
       
-      // Get current playback
+      // Get current playback and queue
       const playbackState = await spotifyService.getCurrentPlayback()
+      const queueData = await spotifyService.getQueue()
       
       // Get polling data
       const pollData = this.activePolls.get(groupId)
       if (!pollData) return
 
-      // Check if track changed
+      // Check if track changed (only compare essential fields)
       const currentTrackId = playbackState?.item?.id || null
       const hasTrackChanged = currentTrackId !== pollData.lastTrackId
       
-      // Check if playback state changed (play/pause, progress, etc.)
+      // Check if playback state changed (only essential fields)
       const hasPlaybackChanged = this.hasPlaybackStateChanged(
         pollData.lastPlaybackState,
         playbackState
       )
 
+      // Check if queue changed (only compare track IDs and order)
+      const currentQueue = queueData?.queue || []
+      const hasQueueChanged = this.hasQueueChanged(pollData.lastQueue, currentQueue)
+
       // Only notify if something changed
       if (hasTrackChanged || hasPlaybackChanged) {
-        console.log(`Spotify state changed for group ${groupId}:`, {
-          trackChanged: hasTrackChanged,
-          playbackChanged: hasPlaybackChanged,
-          currentTrack: playbackState?.item?.name
-        })
-
         // Update stored state
         pollData.lastTrackId = currentTrackId
         pollData.lastPlaybackState = playbackState
@@ -89,15 +92,22 @@ class SpotifyPollingService {
         // Update group's current track
         groupService.updateCurrentTrack(groupId, playbackState?.item || null)
 
-        // TODO: Notify WebSocket clients
-        this.notifyClients(groupId, {
-          type: 'playback_update',
-          data: {
-            currentTrack: playbackState?.item || null,
-            isPlaying: playbackState?.is_playing || false,
-            progressMs: playbackState?.progress_ms || 0
-          }
-        })
+        // Notify SSE clients
+        const notificationData = {
+          currentTrack: playbackState?.item || null
+        }
+        
+        await this.notifyClients(groupId, notificationData, 'playback_update')
+      }
+
+      if (hasQueueChanged) {
+        // Update stored queue
+        pollData.lastQueue = currentQueue
+
+        // Notify SSE clients about queue change
+        await this.notifyClients(groupId, {
+          queue: currentQueue
+        }, 'queue_update')
       }
 
     } catch (error) {
@@ -105,30 +115,55 @@ class SpotifyPollingService {
       
       // If token expired, stop polling
       if (error.statusCode === 401) {
-        console.log(`Token expired for group ${groupId}, stopping polling`)
         this.stopPolling(groupId)
       }
     }
   }
 
-  // Check if playback state has meaningfully changed
+  // Check if playback state has meaningfully changed (only essential fields)
   private hasPlaybackStateChanged(oldState: any, newState: any): boolean {
     if (!oldState && !newState) return false
     if (!oldState || !newState) return true
 
-    // Check key playback properties
-    return (
-      oldState.is_playing !== newState.is_playing ||
-      Math.abs((oldState.progress_ms || 0) - (newState.progress_ms || 0)) > 2000 || // 2s threshold
-      oldState.shuffle_state !== newState.shuffle_state ||
-      oldState.repeat_state !== newState.repeat_state
-    )
+    // Only compare essential fields that users care about
+    const oldEssentials = {
+      is_playing: oldState.is_playing || false,
+      track_id: oldState.item?.id || null,
+      shuffle_state: oldState.shuffle_state || false,
+      repeat_state: oldState.repeat_state || 'off'
+    }
+
+    const newEssentials = {
+      is_playing: newState.is_playing || false,
+      track_id: newState.item?.id || null,
+      shuffle_state: newState.shuffle_state || false,
+      repeat_state: newState.repeat_state || 'off'
+    }
+
+    return JSON.stringify(oldEssentials) !== JSON.stringify(newEssentials)
   }
 
-  // Notify WebSocket clients (placeholder)
-  private notifyClients(groupId: string, message: any) {
-    // TODO: Implement WebSocket notification
-    console.log(`Would notify clients for group ${groupId}:`, message)
+  // Check if queue has changed (only compare track IDs and order)
+  private hasQueueChanged(oldQueue: any[], newQueue: any[]): boolean {
+    if (oldQueue.length !== newQueue.length) return true
+    
+    // Only compare track IDs in order (ignore all other metadata)
+    const oldIds = oldQueue.map(track => track?.id || null)
+    const newIds = newQueue.map(track => track?.id || null)
+    
+    return JSON.stringify(oldIds) !== JSON.stringify(newIds)
+  }
+
+  // Notify SSE clients
+  private async notifyClients(groupId: string, data: any, type = 'playback_update'): Promise<void> {
+    try {
+      await groupService.broadcastToGroup(groupId, {
+        type,
+        data
+      })
+    } catch (error) {
+      console.error('Error notifying SSE clients:', error)
+    }
   }
 
   // Get all active polling groups
@@ -138,7 +173,6 @@ class SpotifyPollingService {
 
   // Stop all polling (for cleanup)
   stopAllPolling() {
-    console.log('Stopping all Spotify polling')
     for (const groupId of this.activePolls.keys()) {
       this.stopPolling(groupId)
     }

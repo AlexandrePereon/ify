@@ -25,10 +25,20 @@
     </div>
 
     <!-- Playing indicator overlay -->
-    <PlayingIndicator 
-      v-if="isPlaying && imageUrl" 
-      :size="indicatorSize"
-    />
+    <div
+      v-if="isPlaying && imageUrl"
+      :class="[
+        'absolute bg-green-500 rounded-full shadow-lg flex items-center justify-center',
+        'bottom-4 right-4',
+        indicatorSize === 'small' ? 'w-6 h-6' : indicatorSize === 'medium' ? 'w-8 h-8' : 'w-12 h-12'
+      ]"
+    >
+      <Icon 
+        name="heroicons:play" 
+        :class="indicatorSize === 'small' ? 'w-3 h-3' : indicatorSize === 'medium' ? 'w-4 h-4' : 'w-6 h-6'"
+        class="text-black" 
+      />
+    </div>
 
     <!-- Loading overlay -->
     <div

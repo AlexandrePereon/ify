@@ -1,6 +1,5 @@
 import { v4 as uuidv4 } from 'uuid'
-// Import will be added when polling service is ready
-// import { spotifyPollingService } from './spotify-polling'
+import { spotifyPollingService } from './spotify-polling.js'
 
 interface Group {
   id: string
@@ -28,6 +27,8 @@ interface Group {
   }
   createdAt: Date
   lastActivity: Date
+  // SSE streams for real-time updates
+  eventStreams: Map<string, any> // userId -> EventStream
 }
 
 // In-memory storage (replace with database later)
@@ -69,14 +70,15 @@ export class GroupService {
       currentTrack: null,
       votes: { skip: [] },
       createdAt: new Date(),
-      lastActivity: new Date()
+      lastActivity: new Date(),
+      eventStreams: new Map()
     }
 
     groups.set(id, group)
     codeToGroupId.set(code, id)
 
-    // TODO: Start Spotify polling for this group
-    // spotifyPollingService.startPolling(id)
+    // Start Spotify polling for this group
+    spotifyPollingService.startPolling(id)
 
     return group
   }
@@ -125,8 +127,8 @@ export class GroupService {
 
     // If admin leaves, delete group
     if (group.admin.id === userId) {
-      // TODO: Stop Spotify polling for this group
-      // spotifyPollingService.stopPolling(groupId)
+      // Stop Spotify polling for this group
+      spotifyPollingService.stopPolling(groupId)
       groups.delete(groupId)
       codeToGroupId.delete(group.code)
       return true
@@ -134,8 +136,8 @@ export class GroupService {
 
     // If no members left, delete group
     if (group.members.length === 0) {
-      // TODO: Stop Spotify polling for this group
-      // spotifyPollingService.stopPolling(groupId)
+      // Stop Spotify polling for this group
+      spotifyPollingService.stopPolling(groupId)
       groups.delete(groupId)
       codeToGroupId.delete(group.code)
     }
@@ -202,6 +204,41 @@ export class GroupService {
     if (group) {
       group.currentTrack = track
       group.lastActivity = new Date()
+    }
+  }
+
+  // Add SSE stream for a user in a group
+  addEventStream(groupId: string, userId: string, eventStream: any): void {
+    const group = groups.get(groupId)
+    if (group) {
+      group.eventStreams.set(userId, eventStream)
+      group.lastActivity = new Date()
+    }
+  }
+
+  // Remove SSE stream for a user
+  removeEventStream(groupId: string, userId: string): void {
+    const group = groups.get(groupId)
+    if (group) {
+      group.eventStreams.delete(userId)
+      group.lastActivity = new Date()
+    }
+  }
+
+  // Broadcast message to all connected users in a group
+  async broadcastToGroup(groupId: string, message: any): Promise<void> {
+    const group = groups.get(groupId)
+    if (group) {
+      const messageStr = JSON.stringify(message)
+      
+      for (const [userId, eventStream] of group.eventStreams) {
+        try {
+          await eventStream.push(messageStr)
+        } catch (error) {
+          // Remove broken stream
+          group.eventStreams.delete(userId)
+        }
+      }
     }
   }
 

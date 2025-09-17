@@ -30,7 +30,11 @@ export default defineEventHandler(async (event) => {
     }
 
     // Use admin's tokens to add to Spotify queue
-    const spotifyService = new SpotifyService(tokens.accessToken)
+    const spotifyService = new SpotifyService(
+      tokens.accessToken, 
+      tokens.refreshToken, 
+      groupId
+    )
     await spotifyService.addToQueue(body.trackUri)
 
     return {
