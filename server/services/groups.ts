@@ -65,6 +65,7 @@ export class GroupService {
         id: admin.id,
         name: admin.name,
         image: admin.image,
+        type: 'admin',
         joinedAt: new Date()
       }],
       currentTrack: null,
@@ -82,6 +83,28 @@ export class GroupService {
 
     return group
   }
+
+  // Add member to group
+  addMemberToGroup(groupId: string, user: any): boolean {
+    const group = groups.get(groupId)
+    if (!group) return false
+
+    // Check if user already in group
+    const existingMember = group.members.find(m => m.id === user.id)
+    if (existingMember) return true
+
+    // Add new member
+    group.members.push({
+      id: user.id,
+      name: user.name,
+      image: user.image,
+      type: user.type || 'guest',
+      joinedAt: new Date()
+    })
+
+    return true
+  }
+
 
   // Get group by ID
   getGroup(id: string): Group | null {
@@ -115,7 +138,7 @@ export class GroupService {
   }
 
   // Leave group
-  leaveGroup(groupId: string, userId: string): boolean {
+  async leaveGroup(groupId: string, userId: string): Promise<boolean> {
     const group = groups.get(groupId)
     if (!group) return false
 
@@ -127,6 +150,12 @@ export class GroupService {
 
     // If admin leaves, delete group
     if (group.admin.id === userId) {
+      // Notify all members that group is being deleted
+      await this.broadcastToGroup(groupId, {
+        type: 'group_deleted',
+        message: 'Group has been closed by the admin'
+      })
+      
       // Stop Spotify polling for this group
       spotifyPollingService.stopPolling(groupId)
       groups.delete(groupId)
@@ -229,11 +258,9 @@ export class GroupService {
   async broadcastToGroup(groupId: string, message: any): Promise<void> {
     const group = groups.get(groupId)
     if (group) {
-      const messageStr = JSON.stringify(message)
-      
       for (const [userId, eventStream] of group.eventStreams) {
         try {
-          await eventStream.push(messageStr)
+          await eventStream.push(JSON.stringify(message))
         } catch (error) {
           // Remove broken stream
           group.eventStreams.delete(userId)

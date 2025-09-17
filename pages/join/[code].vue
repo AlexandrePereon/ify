@@ -2,40 +2,18 @@
   <div class="spotify-main h-screen overflow-hidden">
     <div class="container mx-auto px-4 py-16 h-full">
       <div class="max-w-md mx-auto text-center">
-        <!-- Back to home -->
-        <div class="mb-8 text-left">
-          <NuxtLink
-            to="/"
-            class="text-gray-400 hover:text-white transition-colors flex items-center space-x-2"
-          >
-            <Icon name="heroicons:arrow-left" class="w-4 h-4" />
-            <span>Back</span>
-          </NuxtLink>
-        </div>
-
         <!-- Logo/Title -->
         <div class="mb-8">
           <h1 class="text-4xl font-bold text-white mb-2">
             <span class="text-green-500">I</span>FY
           </h1>
           <p class="text-gray-400">
-            Rejoindre un groupe
+            Rejoindre le groupe <span class="text-green-500 font-mono">{{ groupCode }}</span>
           </p>
         </div>
 
-        <!-- Join Form -->
+        <!-- Guest Name Form -->
         <div v-if="!joining" class="space-y-6">
-          <div>
-            <input
-              v-model="groupCode"
-              type="text"
-              placeholder="Code du groupe"
-              class="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent uppercase text-center font-mono"
-              maxlength="6"
-              @input="groupCode = groupCode.toUpperCase()"
-            />
-          </div>
-          
           <div>
             <input
               v-model="guestName"
@@ -49,13 +27,13 @@
           
           <button
             @click="joinAsGuest"
-            :disabled="!groupCode.trim() || groupCode.length < 3 || !guestName.trim() || joining"
+            :disabled="!guestName.trim() || joining"
             class="w-full px-4 py-3 bg-green-500 hover:bg-green-400 disabled:bg-gray-600 disabled:opacity-50 text-black font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
           >
             Rejoindre le groupe
           </button>
 
-          <div v-if="error" class="text-red-400 text-sm text-center">
+          <div v-if="error" class="text-red-400 text-sm">
             {{ error }}
           </div>
         </div>
@@ -71,30 +49,20 @@
 </template>
 
 <script setup lang="ts">
-// Allow unauthenticated access to this page
-definePageMeta({
-  auth: false
-})
-
 const route = useRoute()
 const { signIn } = useAuth()
 
+// Get group code from route
+const groupCode = route.params.code as string
+
 // State
-const groupCode = ref('')
 const guestName = ref('')
 const joining = ref(false)
 const error = ref('')
 
-// Initialize with code from route if coming from /join/[code]
-onMounted(() => {
-  if (route.params.code) {
-    groupCode.value = (route.params.code as string).toUpperCase()
-  }
-})
-
 // Methods
 const joinAsGuest = async () => {
-  if (!groupCode.value.trim() || !guestName.value.trim()) return
+  if (!guestName.value.trim()) return
   
   joining.value = true
   error.value = ''
@@ -105,7 +73,7 @@ const joinAsGuest = async () => {
       method: 'POST',
       body: {
         name: guestName.value.trim(),
-        groupCode: groupCode.value
+        groupCode: groupCode
       }
     })
 
@@ -128,6 +96,6 @@ const joinAsGuest = async () => {
 
 // Metadata
 useHead({
-  title: `Rejoindre un groupe - IFY`
+  title: `Rejoindre ${groupCode} - IFY`
 })
 </script>

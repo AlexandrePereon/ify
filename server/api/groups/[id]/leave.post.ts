@@ -16,6 +16,9 @@ export default defineEventHandler(async (event) => {
 
     // Remove user's event stream
     groupService.removeEventStream(groupId, userId)
+    
+    // Remove user from group (this will handle admin leaving = group deletion)
+    await groupService.leaveGroup(groupId, userId)
 
     // Check if any users are still connected to this group
     const group = groupService.getGroup(groupId)

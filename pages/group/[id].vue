@@ -64,7 +64,7 @@ const route = useRoute()
 const groupId = route.params.id as string
 
 // Auth
-const { status, data } = useAuth()
+const { status, data, signOut } = useAuth()
 
 // State
 const group = ref(null)
@@ -128,7 +128,11 @@ const refreshCurrentTrack = async () => {
 
 const initializeGroupConnection = async () => {
   if (process.client && status.value === 'authenticated') {
-    const userId = data.value?.user?.email || data.value?.user?.id
+    const userId = data.value?.user?.id || data.value?.user?.email
+    
+    if (!userId) {
+      return
+    }
 
     // Initialize Group SSE with clean callbacks
     groupSSE.value = useGroupSSE({
@@ -155,6 +159,10 @@ const initializeGroupConnection = async () => {
       onVoteUpdate: (voteData) => {
         skipVotes.value = voteData.skipVotes
       },
+      onGroupDeleted: (deletedData) => {
+        // Group has been deleted by admin, disconnect and redirect
+        handleGroupDeleted(deletedData.message)
+      },
       onError: (error) => {
         console.error('Group SSE connection error:', error)
       }
@@ -170,7 +178,10 @@ const initializeGroupConnection = async () => {
         groupSSE.value.connect()
       }
     } catch (error) {
-      // Silent fail
+      // If group not found or access denied, redirect to home
+      if (error.data?.statusCode === 404 || error.data?.statusCode === 403) {
+        await navigateTo('/')
+      }
     }
   }
 }
@@ -239,8 +250,43 @@ const clearQueue = () => {
   queue.value = []
 }
 
+const handleGroupDeleted = async (message: string) => {
+  try {
+    // Disconnect from group
+    await disconnectGroupConnection()
+    
+    // Sign out from auth system (group is already deleted server-side)
+    await signOut({ redirect: false })
+    
+    // Redirect to home
+    await navigateTo('/')
+  } catch (error) {
+    // Fallback: force signout and redirect
+    await signOut({ redirect: false })
+    await navigateTo('/')
+  }
+}
+
 const leaveGroup = async () => {
-  await navigateTo('/')
+  try {
+    // Disconnect from group first
+    await disconnectGroupConnection()
+    
+    // Call logout API to handle cleanup
+    await $fetch('/api/auth/logout', {
+      method: 'POST'
+    })
+    
+    // Sign out from auth system
+    await signOut({ redirect: false })
+    
+    // Redirect to home
+    await navigateTo('/')
+  } catch (error) {
+    // Fallback: force signout and redirect
+    await signOut({ redirect: false })
+    await navigateTo('/')
+  }
 }
 
 // Load initial data

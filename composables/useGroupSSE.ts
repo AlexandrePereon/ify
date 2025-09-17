@@ -23,6 +23,10 @@ export interface GroupSSEData {
     skipVotes: number
     totalMembers: number
   }
+  group_deleted: {
+    message: string
+  }
+  raw: string
 }
 
 export type GroupSSEMessageType = keyof GroupSSEData
@@ -35,6 +39,7 @@ export interface GroupSSEOptions {
   onGroupState?: (data: GroupSSEData['group_state']) => void
   onTrackAdded?: (data: GroupSSEData['track_added_notification']) => void
   onVoteUpdate?: (data: GroupSSEData['vote_update']) => void
+  onGroupDeleted?: (data: GroupSSEData['group_deleted']) => void
   onError?: (error: Event) => void
 }
 
@@ -64,6 +69,24 @@ export function useGroupSSE(options: GroupSSEOptions) {
   const handleGroupMessage = (message: SSEMessage) => {
     const { type, data } = message
 
+    // Handle raw messages (fallback parsing)
+    if (type === 'raw' && typeof data === 'string') {
+      try {
+        const parsedMessage = JSON.parse(data)
+        
+        // Restructure to match expected format: {type, data}
+        const restructuredMessage = {
+          type: parsedMessage.type,
+          data: parsedMessage
+        }
+        
+        handleGroupMessage(restructuredMessage)
+        return
+      } catch (error) {
+        return
+      }
+    }
+
     switch (type as GroupSSEMessageType) {
       case 'playback_update':
         options.onPlaybackUpdate?.(data)
@@ -83,6 +106,10 @@ export function useGroupSSE(options: GroupSSEOptions) {
       
       case 'vote_update':
         options.onVoteUpdate?.(data)
+        break
+      
+      case 'group_deleted':
+        options.onGroupDeleted?.(data)
         break
     }
   }
