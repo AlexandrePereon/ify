@@ -92,11 +92,22 @@ class SpotifyPollingService {
         // Update group's current track
         groupService.updateCurrentTrack(groupId, playbackState?.item || null)
 
-        // Notify SSE clients
+        // Reset votes when track changes
+        if (hasTrackChanged) {
+          groupService.clearSkipVotes(groupId)
+
+          // Notify clients about vote reset
+          const voteData = groupService.getVoteData(groupId)
+          if (voteData) {
+            await this.notifyClients(groupId, voteData, 'vote_update')
+          }
+        }
+
+        // Notify SSE clients about playback update
         const notificationData = {
           currentTrack: playbackState?.item || null
         }
-        
+
         await this.notifyClients(groupId, notificationData, 'playback_update')
       }
 

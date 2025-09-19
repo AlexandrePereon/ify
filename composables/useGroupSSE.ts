@@ -22,6 +22,7 @@ export interface GroupSSEData {
   vote_update: {
     skipVotes: number
     totalMembers: number
+    votedUserIds: string[]
   }
   group_deleted: {
     message: string

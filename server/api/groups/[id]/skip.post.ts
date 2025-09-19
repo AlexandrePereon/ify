@@ -25,28 +25,51 @@ export default defineEventHandler(async (event) => {
 
     // Vote to skip
     const voteResult = groupService.voteSkip(groupId, userId)
-    
+
+    // Broadcast vote update to all group members
+    const voteData = groupService.getVoteData(groupId)
+    if (voteData) {
+      await groupService.broadcastToGroup(groupId, {
+        type: 'vote_update',
+        data: voteData
+      })
+    }
+
     // Check if majority reached
     if (groupService.shouldSkip(groupId)) {
+      console.log('[DEBUG] Majority reached, attempting to skip...')
+
       // Get admin's Spotify tokens
       const tokens = groupService.getAdminTokens(groupId)
       if (tokens) {
-        // Use admin's tokens to skip track
-        const spotifyService = new SpotifyService(
-          tokens.accessToken, 
-          tokens.refreshToken, 
-          groupId
-        )
-        await spotifyService.skipToNext()
-        
-        // Clear votes after successful skip
-        groupService.clearSkipVotes(groupId)
-        
-        return {
-          success: true,
-          skipped: true,
-          message: 'Track skipped'
+        console.log('[DEBUG] Admin tokens found, creating Spotify service...')
+
+        try {
+          // Use admin's tokens to skip track
+          const spotifyService = new SpotifyService(
+            tokens.accessToken,
+            tokens.refreshToken,
+            groupId
+          )
+
+          console.log('[DEBUG] Calling skipToNext...')
+          await spotifyService.skipToNext()
+
+          console.log('[DEBUG] Skip successful, clearing votes...')
+          // Clear votes after successful skip
+          groupService.clearSkipVotes(groupId)
+
+          return {
+            success: true,
+            skipped: true,
+            message: 'Track skipped'
+          }
+        } catch (skipError) {
+          console.error('[DEBUG] Error during skip:', skipError)
+          throw skipError
         }
+      } else {
+        console.log('[DEBUG] No admin tokens found')
       }
     }
 

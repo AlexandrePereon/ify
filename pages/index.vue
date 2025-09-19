@@ -52,6 +52,15 @@
             <div class="text-center">
               <p class="text-white mb-2">Connecté en tant que :</p>
               <p class="text-green-500 font-semibold">{{ data?.user?.name || data?.user?.email }}</p>
+              <div class="flex items-center justify-center mt-2">
+                <Icon
+                  :name="data?.user?.type === 'guest' ? 'heroicons:user' : 'simple-icons:spotify'"
+                  :class="data?.user?.type === 'guest' ? 'w-4 h-4 text-gray-400' : 'w-4 h-4 text-green-500'"
+                />
+                <span class="ml-2 text-sm text-gray-400">
+                  {{ data?.user?.type === 'guest' ? 'Invité' : 'Spotify' }}
+                </span>
+              </div>
             </div>
             <button
               @click="() => signOut({ redirect: false })"
@@ -62,21 +71,23 @@
             </button>
           </div>
 
+          <!-- Create Group Button (only for Spotify users) -->
           <button
+            v-if="data?.user?.type !== 'guest'"
             @click="createSpotifyGroup"
             class="spotify-button w-full"
           >
             <Icon name="simple-icons:spotify" class="w-5 h-5" />
             <span>Créer un nouveau groupe</span>
           </button>
-          
+
           <div class="text-center">
-            <div class="flex items-center mb-4">
+            <div v-if="data?.user?.type !== 'guest'" class="flex items-center mb-4">
               <div class="flex-1 h-px bg-gray-600"></div>
               <span class="px-4 text-gray-400 text-sm">ou</span>
               <div class="flex-1 h-px bg-gray-600"></div>
             </div>
-            
+
             <button
               @click="() => navigateTo('/join')"
               class="w-full px-4 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors font-medium"

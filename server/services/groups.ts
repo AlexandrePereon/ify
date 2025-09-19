@@ -227,6 +227,18 @@ export class GroupService {
     }
   }
 
+  // Get vote data for SSE broadcast
+  getVoteData(groupId: string): { skipVotes: number; totalMembers: number; votedUserIds: string[] } | null {
+    const group = groups.get(groupId)
+    if (!group) return null
+
+    return {
+      skipVotes: group.votes.skip.length,
+      totalMembers: group.members.length,
+      votedUserIds: [...group.votes.skip]
+    }
+  }
+
   // Update current track
   updateCurrentTrack(groupId: string, track: any): void {
     const group = groups.get(groupId)

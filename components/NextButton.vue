@@ -1,7 +1,8 @@
 <template>
   <div class="flex flex-col items-center space-y-4">
-    <!-- Main Next Button -->
+    <!-- Main Next Button (hidden when user has voted) -->
     <button
+      v-if="!hasVoted"
       :disabled="disabled || loading"
       :class="[
         'relative flex items-center justify-center',
@@ -28,16 +29,21 @@
       {{ loading ? 'Processing...' : 'Next' }}
     </button>
     
-    <!-- Vote Counter (shown when votes are active) -->
-    <div
+    <!-- Vote Counter (shown when votes are active, clickable to remove vote) -->
+    <button
       v-if="showVoteCounter"
-      class="flex items-center space-x-2 px-4 py-2 bg-gray-800 rounded-full border border-gray-600"
+      :disabled="loading"
+      class="flex items-center space-x-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-full border border-gray-600 transition-colors duration-200 cursor-pointer"
+      @click="handleNext"
     >
       <Icon name="heroicons:hand-raised" class="w-4 h-4 text-orange-400" />
-      <span class="text-sm text-gray-300">
-        {{ skipVotes }}/{{ Math.ceil(totalMembers / 2) }} votes to skip
-      </span>
-    </div>
+      <div class="flex flex-col">
+        <span class="text-sm text-gray-300">
+          {{ skipVotes }}/{{ Math.floor(totalMembers / 2) + 1 }} votes to skip
+        </span>
+        <span class="text-xs text-gray-500">(click to remove vote)</span>
+      </div>
+    </button>
     
     <!-- Status Message -->
     <p v-if="statusMessage" class="text-sm text-gray-400 text-center max-w-xs">
@@ -53,13 +59,15 @@ interface Props {
   skipVotes?: number
   totalMembers?: number
   showVoteCounter?: boolean
+  hasVoted?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   disabled: false,
   skipVotes: 0,
   totalMembers: 1,
-  showVoteCounter: false
+  showVoteCounter: false,
+  hasVoted: false
 })
 
 const emit = defineEmits<{

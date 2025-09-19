@@ -31,8 +31,9 @@
         <NextButton
           :group-id="groupId"
           :skip-votes="skipVotes"
-          :total-members="group?.members?.length || 1"
+          :total-members="totalMembers"
           :show-vote-counter="skipVotes > 0"
+          :has-voted="hasVoted"
           @voted="handleVoteUpdate"
           @skipped="handleSkipped"
         />
@@ -71,6 +72,8 @@ const group = ref(null)
 const currentTrack = ref(null)
 const trackLoading = ref(false)
 const skipVotes = ref(0)
+const totalMembers = ref(1)
+const hasVoted = ref(false)
 const showShareModal = ref(false)
 
 // Queue data
@@ -157,7 +160,23 @@ const initializeGroupConnection = async () => {
         // Could show a toast notification here
       },
       onVoteUpdate: (voteData) => {
+        console.log('[DEBUG FRONT] Vote update received:', voteData)
+        console.log('[DEBUG FRONT] Before update - skipVotes:', skipVotes.value, 'totalMembers:', totalMembers.value, 'hasVoted:', hasVoted.value)
+
+        // Ignore les mises à jour qui n'ont pas votedUserIds (ce sont les anciennes)
+        if (!voteData.votedUserIds) {
+          console.log('[DEBUG FRONT] Ignoring vote update without votedUserIds')
+          return
+        }
+
         skipVotes.value = voteData.skipVotes
+        totalMembers.value = voteData.totalMembers
+        const currentUserId = data.value?.user?.id || data.value?.user?.email
+        hasVoted.value = voteData.votedUserIds.includes(currentUserId)
+
+        console.log('[DEBUG FRONT] After update - skipVotes:', skipVotes.value, 'totalMembers:', totalMembers.value, 'hasVoted:', hasVoted.value)
+        console.log('[DEBUG FRONT] Show counter condition (skipVotes > 0):', skipVotes.value > 0)
+        console.log('[DEBUG FRONT] currentUserId:', currentUserId, 'votedUserIds:', voteData.votedUserIds)
       },
       onGroupDeleted: (deletedData) => {
         // Group has been deleted by admin, disconnect and redirect
@@ -173,13 +192,18 @@ const initializeGroupConnection = async () => {
       const joinResult = await groupSSE.value.joinGroup()
       if (joinResult.success) {
         group.value = joinResult.group
-        
+        totalMembers.value = joinResult.group.members?.length || 1
+
+        console.log('[DEBUG FRONT] Group joined - members count:', totalMembers.value)
+        console.log('[DEBUG FRONT] Group members:', joinResult.group.members)
+
         // Connect to SSE stream
         groupSSE.value.connect()
       }
     } catch (error) {
       // If group not found or access denied, redirect to home
-      if (error.data?.statusCode === 404 || error.data?.statusCode === 403) {
+      if (error.data?.statusCode === 404 || error.data?.statusCode === 403 ||
+          (error.data?.statusCode === 500 && error.data?.statusMessage?.includes('Group not found'))) {
         await navigateTo('/')
       }
     }
@@ -210,19 +234,14 @@ const handleTrackAdded = async (track: any) => {
 }
 
 const handleVoteUpdate = async (result: any) => {
-  skipVotes.value = result.skipVotes
-  
-  if (groupSSE.value) {
-    try {
-      await groupSSE.value.notifyVoteUpdate(result)
-    } catch (error) {
-      console.warn('Failed to notify vote update:', error)
-    }
-  }
+  // Ne rien faire, l'endpoint /skip gère déjà la diffusion SSE
+  console.log('[DEBUG FRONT] handleVoteUpdate called with:', result)
+  console.log('[DEBUG FRONT] Skipping notifyVoteUpdate - already handled by /skip endpoint')
 }
 
 const handleSkipped = () => {
   skipVotes.value = 0
+  hasVoted.value = false
   // Refresh current track after skip
   setTimeout(() => {
     refreshCurrentTrack()
@@ -254,15 +273,25 @@ const handleGroupDeleted = async (message: string) => {
   try {
     // Disconnect from group
     await disconnectGroupConnection()
-    
-    // Sign out from auth system (group is already deleted server-side)
-    await signOut({ redirect: false })
-    
+
+    // Call logout API to handle cleanup (but don't sign out Spotify users)
+    const logoutResponse = await $fetch('/api/auth/logout', {
+      method: 'POST'
+    })
+
+    // Only sign out guests, keep Spotify users authenticated
+    if (logoutResponse.userType === 'guest') {
+      await signOut({ redirect: false })
+    }
+
     // Redirect to home
     await navigateTo('/')
   } catch (error) {
-    // Fallback: force signout and redirect
-    await signOut({ redirect: false })
+    // For guests, fallback to force signout
+    // For Spotify users, just redirect
+    if (data.value?.user?.type === 'guest') {
+      await signOut({ redirect: false })
+    }
     await navigateTo('/')
   }
 }
@@ -271,20 +300,25 @@ const leaveGroup = async () => {
   try {
     // Disconnect from group first
     await disconnectGroupConnection()
-    
-    // Call logout API to handle cleanup
-    await $fetch('/api/auth/logout', {
+
+    // Call logout API to handle cleanup (but don't sign out Spotify users)
+    const logoutResponse = await $fetch('/api/auth/logout', {
       method: 'POST'
     })
-    
-    // Sign out from auth system
-    await signOut({ redirect: false })
-    
+
+    // Only sign out guests, keep Spotify users authenticated
+    if (logoutResponse.userType === 'guest') {
+      await signOut({ redirect: false })
+    }
+
     // Redirect to home
     await navigateTo('/')
   } catch (error) {
-    // Fallback: force signout and redirect
-    await signOut({ redirect: false })
+    // For guests, fallback to force signout
+    // For Spotify users, just redirect
+    if (data.value?.user?.type === 'guest') {
+      await signOut({ redirect: false })
+    }
     await navigateTo('/')
   }
 }

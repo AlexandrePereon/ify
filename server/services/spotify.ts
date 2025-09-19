@@ -85,8 +85,14 @@ export class SpotifyService {
     if (response.status === 204) {
       return null as T
     }
-    
-    return response.json()
+
+    // Check if response has content before parsing JSON
+    const contentType = response.headers.get('content-type')
+    if (contentType && contentType.includes('application/json')) {
+      return response.json()
+    }
+
+    return null as T
   }
 
   // Get current user

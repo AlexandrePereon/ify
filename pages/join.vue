@@ -114,7 +114,7 @@
             />
           </div>
           
-          <div>
+          <div v-if="status !== 'authenticated'">
             <input
               v-model="guestName"
               type="text"
@@ -123,6 +123,21 @@
               maxlength="30"
               @keyup.enter="joinAsGuest"
             />
+          </div>
+
+          <!-- Show user info if authenticated -->
+          <div v-else class="text-center p-4 bg-gray-800 rounded-lg border border-gray-600">
+            <p class="text-gray-400 text-sm mb-1">Joining as:</p>
+            <p class="text-white font-semibold">{{ data?.user?.name }}</p>
+            <div class="flex items-center justify-center mt-2">
+              <Icon
+                :name="data?.user?.type === 'guest' ? 'heroicons:user' : 'simple-icons:spotify'"
+                :class="data?.user?.type === 'guest' ? 'w-4 h-4 text-gray-400' : 'w-4 h-4 text-green-500'"
+              />
+              <span class="ml-2 text-sm text-gray-400">
+                {{ data?.user?.type === 'guest' ? 'Guest' : 'Spotify' }}
+              </span>
+            </div>
           </div>
 
           <!-- Scanner toggle for capable devices -->
@@ -137,11 +152,11 @@
           </div>
           
           <button
-            @click="joinAsGuest"
-            :disabled="!groupCode.trim() || groupCode.length < 3 || !guestName.trim() || joining"
+            @click="status === 'authenticated' ? joinExistingUser() : joinAsGuest()"
+            :disabled="!groupCode.trim() || groupCode.length < 3 || (status !== 'authenticated' && !guestName.trim()) || joining"
             class="w-full px-4 py-3 bg-green-500 hover:bg-green-400 disabled:bg-gray-600 disabled:opacity-50 text-black font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
           >
-            Join group
+            {{ status === 'authenticated' ? 'Join group' : 'Join as guest' }}
           </button>
 
           <div v-if="error" class="text-red-400 text-sm text-center">
@@ -168,7 +183,7 @@ definePageMeta({
 })
 
 const route = useRoute()
-const { signIn } = useAuth()
+const { signIn, status, data } = useAuth()
 const { $device } = useNuxtApp()
 
 // State
@@ -186,14 +201,28 @@ const cameraError = ref('')
 onMounted(async () => {
   console.log('Join page mounted - Device:', $device)
   console.log('Is mobile:', $device.isMobile)
-  
+  console.log('Auth status:', status.value)
+  console.log('User data:', data.value)
+
+  // Pre-fill username if user is authenticated
+  if (status.value === 'authenticated' && data.value?.user?.name) {
+    guestName.value = data.value.user.name
+  }
+
   // Set default input mode based on device
+  console.log('Device detection:', {
+    isMobile: $device.isMobile,
+    isDesktop: $device.isDesktop,
+    isTablet: $device.isTablet,
+    userAgent: navigator?.userAgent
+  })
+
   if ($device.isMobile) {
     console.log('Setting QR scanner for mobile')
     showQRScanner.value = true
     hasCamera.value = true
   } else {
-    console.log('Using manual input mode')
+    console.log('Using manual input mode for desktop/tablet')
     showQRScanner.value = false
     hasCamera.value = false
   }
@@ -204,33 +233,38 @@ onMounted(async () => {
     groupCode.value = (route.params.code as string).toUpperCase()
     showQRScanner.value = false // Force manual input if code provided
   }
-  
+
   console.log('Final showQRScanner:', showQRScanner.value)
 })
 
 // QR Scanner methods
-const onDetect = (detectedCodes: any[]) => {
+const onDetect = async (detectedCodes: any[]) => {
   if (detectedCodes.length > 0) {
     const result = detectedCodes[0].rawValue
-    
+
     // Extract group code from QR result
     let code = result
-    
+
     // If it's a full URL, extract the code
     const urlMatch = code.match(/\/join\/([A-Z0-9]{6})/)
     if (urlMatch) {
       code = urlMatch[1]
     }
-    
+
     // Validate code format (6 alphanumeric characters)
     if (/^[A-Z0-9]{6}$/.test(code)) {
       groupCode.value = code.toUpperCase()
-      
-      // Auto-focus name input after successful scan
-      nextTick(() => {
-        const nameInput = document.querySelector('input[ref="nameInput"]') as HTMLInputElement
-        nameInput?.focus()
-      })
+
+      // If user is authenticated, join directly
+      if (status.value === 'authenticated') {
+        await joinExistingUser()
+      } else {
+        // Show name input for guests
+        nextTick(() => {
+          const nameInput = document.querySelector('input[ref="nameInput"]') as HTMLInputElement
+          nameInput?.focus()
+        })
+      }
     } else {
       cameraError.value = 'Invalid QR code'
     }
@@ -264,13 +298,13 @@ const toggleInput = () => {
 
 const joinAsGuest = async () => {
   if (!groupCode.value.trim() || !guestName.value.trim()) return
-  
+
   joining.value = true
   error.value = ''
-  
+
   // Clear any camera errors during join process
   cameraError.value = ''
-  
+
   try {
     // Create guest session
     const response = await $fetch('/api/auth/guest', {
@@ -287,13 +321,50 @@ const joinAsGuest = async () => {
         user: JSON.stringify(response.user),
         redirect: false
       })
-      
+
       // Redirect to group using the REAL group ID
       await navigateTo(`/group/${response.group.id}`)
     }
   } catch (err: any) {
     error.value = err.data?.message || 'Group not found or connection error'
-    
+
+    // Reset scan state if needed
+    if (showQRScanner.value && hasCamera.value) {
+      groupCode.value = '' // Allow re-scanning
+    }
+  } finally {
+    joining.value = false
+  }
+}
+
+const joinExistingUser = async () => {
+  if (!groupCode.value.trim()) return
+
+  joining.value = true
+  error.value = ''
+
+  try {
+    // Find group by code
+    const response = await $fetch('/api/groups/join-by-code', {
+      method: 'POST',
+      body: {
+        groupCode: groupCode.value,
+        user: {
+          id: data.value?.user?.id || data.value?.user?.email,
+          name: data.value?.user?.name,
+          image: data.value?.user?.image,
+          type: data.value?.user?.type || 'spotify'
+        }
+      }
+    })
+
+    if (response.success) {
+      // Redirect to group using the group ID
+      await navigateTo(`/group/${response.group.id}`)
+    }
+  } catch (err: any) {
+    error.value = err.data?.message || 'Group not found or connection error'
+
     // Reset scan state if needed
     if (showQRScanner.value && hasCamera.value) {
       groupCode.value = '' // Allow re-scanning
