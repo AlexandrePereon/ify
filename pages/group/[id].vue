@@ -1,21 +1,13 @@
 <template>
   <div class="spotify-main h-screen overflow-hidden">
     <div class="container mx-auto px-4 py-2 max-w-lg h-full flex flex-col">
-      <!-- Search Bar with Disconnect Button -->
-      <div class="flex items-center gap-3 mb-2 flex-shrink-0">
-        <div class="flex-1">
-          <SearchBar
-            :group-id="groupId"
-            placeholder="Search for tracks to add..."
-            @track-added="handleTrackAdded"
-          />
-        </div>
-        <button
-          @click="leaveGroup"
-          class="text-gray-400 hover:text-red-400 transition-colors p-3 rounded-lg hover:bg-gray-800/50"
-        >
-          <Icon name="heroicons:arrow-right-start-on-rectangle" class="w-5 h-5" />
-        </button>
+      <!-- Search Bar -->
+      <div class="mb-2 flex-shrink-0">
+        <SearchBar
+          :group-id="groupId"
+          placeholder="Search for tracks to add..."
+          @track-added="handleTrackAdded"
+        />
       </div>
 
       <!-- Current Track Display -->
@@ -47,6 +39,22 @@
         @clear="clearQueue"
         @show-share="showShareModal = true"
       />
+
+      <!-- Floating Leave Group Button -->
+      <button
+        @click="leaveGroup"
+        :class="[
+          'fixed bottom-6 right-6 z-40',
+          'w-12 h-12',
+          'rounded-full',
+          'flex items-center justify-center',
+          'transition-all duration-200 transform',
+          'hover:scale-110'
+        ]"
+        title="Leave Group"
+      >
+        <Icon name="heroicons:arrow-right-start-on-rectangle" class="w-6 h-6 text-[#1DB954]" />
+      </button>
       
       <!-- Group Code Modal -->
       <GroupCodeModal

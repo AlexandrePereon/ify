@@ -48,7 +48,7 @@
 
         <!-- Authenticated - Show options -->
         <div v-else-if="status === 'authenticated'" class="space-y-6">
-          <div class="mb-6 p-4 bg-gray-900 rounded-lg relative">
+          <div class="mb-6 p-4 bg-gray-900 rounded-lg">
             <div class="text-center">
               <p class="text-white mb-2">Connecté en tant que :</p>
               <p class="text-green-500 font-semibold">{{ data?.user?.name || data?.user?.email }}</p>
@@ -62,14 +62,16 @@
                 </span>
               </div>
             </div>
-            <button
-              @click="() => signOut({ redirect: false })"
-              class="absolute top-2 right-2 text-gray-400 hover:text-red-400 transition-colors p-2 rounded-lg hover:bg-gray-800"
-              title="Se déconnecter"
-            >
-              <Icon name="heroicons:arrow-right-start-on-rectangle" class="w-5 h-5" />
-            </button>
           </div>
+
+          <!-- Disconnect Button -->
+          <button
+            @click="() => signOut({ redirect: false })"
+            class="w-full mb-6 px-4 py-2 text-gray-400 hover:text-red-400 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors border border-gray-600"
+          >
+            <Icon name="heroicons:arrow-right-start-on-rectangle" class="w-4 h-4 inline mr-2" />
+            Se déconnecter
+          </button>
 
           <!-- Create Group Button (only for Spotify users) -->
           <button
