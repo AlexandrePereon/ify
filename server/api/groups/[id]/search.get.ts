@@ -1,0 +1,51 @@
+import { groupService } from '~/server/services/groups'
+import { SpotifyService } from '~/server/services/spotify'
+
+export default defineEventHandler(async (event) => {
+  try {
+    const groupId = getRouterParam(event, 'id')
+    const query = getQuery(event)
+
+    // Only authenticated members of this group may search with the admin's tokens.
+    const { userId } = await requireGroupMember(event, groupId)
+
+    if (!query.q) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Search query required'
+      })
+    }
+
+    // Protect the admin's Spotify API quota from being burned by a single member.
+    enforceRateLimit(rateLimitKey(event, `search:${groupId}`, userId), 30, 10_000)
+
+    // Get admin's Spotify tokens
+    const tokens = groupService.getAdminTokens(groupId!)
+    if (!tokens) {
+      throw createError({
+        statusCode: 404,
+        statusMessage: 'Group not found or admin tokens unavailable'
+      })
+    }
+
+    // Use admin's tokens to search Spotify
+    const spotifyService = new SpotifyService(
+      tokens.accessToken,
+      tokens.refreshToken,
+      groupId!
+    )
+    const tracks = await spotifyService.searchTracks(query.q as string, 20)
+
+    return {
+      success: true,
+      tracks
+    }
+  } catch (error: any) {
+    if (error?.statusCode) throw error
+    console.error('Search API error:', error)
+    throw createError({
+      statusCode: 500,
+      statusMessage: 'Search failed'
+    })
+  }
+})
