@@ -4,6 +4,12 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
 
+  // SPA mode: IFY is a fully interactive real-time app (SSE, EventSource,
+  // client-driven auth). Disabling SSR avoids @sidebase/nuxt-auth's server-side
+  // self-fetch to /api/auth/session, which is unreachable from inside a
+  // container behind a reverse proxy. Nitro still serves all API routes + SSE.
+  ssr: false,
+
   devServer: {
     host: '127.0.0.1',
     port: 3001

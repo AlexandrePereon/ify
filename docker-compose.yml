@@ -1,0 +1,71 @@
+networks:
+  # Réseau partagé du Traefik existant (déjà créé sur le serveur).
+  # `external: true` => docker-compose ne le crée pas, il s'y attache.
+  traefik-net:
+    name: traefik-net
+    external: true
+
+# IFY garde tout son état en mémoire (aucune base de données, aucun cache,
+# aucun stockage objet). Il n'y a donc ni postgres, ni redis, ni minio, ni
+# volumes : un redémarrage du conteneur réinitialise les groupes, c'est assumé.
+
+services:
+  # ─────────────────────────────────────────────────────────────
+  # Cloudflare Tunnel (dédié à IFY)
+  # Doit être sur traefik-net pour atteindre le Traefik existant.
+  # ─────────────────────────────────────────────────────────────
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    networks:
+      - traefik-net
+
+  # ─────────────────────────────────────────────────────────────
+  # IFY app (Nuxt 3 / Nitro, un seul process)
+  #   HTTP : 3000 → Host(${DOMAIN_NAME})
+  # Le temps réel passe en SSE (Server-Sent Events) sur ce même port —
+  # pas de serveur WebSocket séparé. Traefik/Cloudflare relaient le flux
+  # SSE nativement (réponse HTTP longue durée).
+  # ─────────────────────────────────────────────────────────────
+  app:
+    image: ify-app
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    networks:
+      - traefik-net
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOST: 0.0.0.0
+      # ── Auth (@sidebase/nuxt-auth + @auth/core) ──
+      # AUTH_ORIGIN est lu par le module d'auth ; NUXT_AUTH_ORIGIN alimente
+      # runtimeConfig.authOrigin. On met les deux à la même valeur.
+      AUTH_ORIGIN: https://${DOMAIN_NAME}
+      NUXT_AUTH_ORIGIN: https://${DOMAIN_NAME}
+      NUXT_AUTH_SECRET: ${NUXT_AUTH_SECRET}
+      # ── Spotify OAuth ──
+      NUXT_SPOTIFY_CLIENT_ID: ${NUXT_SPOTIFY_CLIENT_ID}
+      NUXT_SPOTIFY_CLIENT_SECRET: ${NUXT_SPOTIFY_CLIENT_SECRET}
+      # ── URL publique (runtimeConfig.public.authUrl) ──
+      # NUXT_PUBLIC_AUTH_URL surcharge la valeur au runtime ; NEXT_PUBLIC_AUTH_URL
+      # est le nom lu par nuxt.config au build (on couvre les deux).
+      NUXT_PUBLIC_AUTH_URL: https://${DOMAIN_NAME}
+      NEXT_PUBLIC_AUTH_URL: https://${DOMAIN_NAME}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    labels:
+      - "traefik.enable=true"
+      # Indique à Traefik sur quel réseau joindre ce conteneur.
+      - "traefik.docker.network=traefik-net"
+      # ── HTTP + SSE (même port) ──
+      - "traefik.http.routers.ify-http.rule=Host(`${DOMAIN_NAME}`)"
+      - "traefik.http.routers.ify-http.entrypoints=cf"
+      - "traefik.http.routers.ify-http.service=ify-http"
+      - "traefik.http.services.ify-http.loadbalancer.server.port=3000"
