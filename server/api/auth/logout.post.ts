@@ -16,11 +16,15 @@ export default defineEventHandler(async (event) => {
         await groupService.leaveGroup(user.groupId, user.id)
       }
     } else {
-      // Admin: Find and delete their group
-      const groups = groupService.getAllGroups()
-      const adminGroup = groups.find(group => group.admin.id === user.id)
-      if (adminGroup) {
-        await groupService.leaveGroup(adminGroup.id, user.id) // This will delete the group since admin is leaving
+      // Admin (Spotify): the session has no `user.id`; admins are keyed by
+      // email everywhere (see create.post.ts / getSessionUserId).
+      const adminId = getSessionUserId(session)
+      const adminGroup = adminId
+        ? groupService.getAllGroups().find(group => group.admin.id === adminId)
+        : undefined
+      if (adminGroup && adminId) {
+        // Deletes the group since the admin is leaving.
+        await groupService.leaveGroup(adminGroup.id, adminId)
       }
     }
 

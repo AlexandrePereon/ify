@@ -4,6 +4,10 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
 
+  devServer: {
+    host: '127.0.0.1',
+    port: 3001
+  },
 
   modules: [
     '@nuxt/eslint',
@@ -40,7 +44,7 @@ export default defineNuxtConfig({
       meta: [
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-        { name: 'theme-color', content: '#22c55e' }
+        { name: 'theme-color', content: '#1DB954' }
       ]
     }
   }

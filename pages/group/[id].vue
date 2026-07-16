@@ -1,11 +1,17 @@
 <template>
-  <div class="spotify-main h-screen overflow-hidden">
-    <div class="container mx-auto px-4 py-2 max-w-lg h-full flex flex-col">
+  <div class="spotify-main h-screen overflow-hidden relative">
+    <!-- Ambient gradient from album art (Spotify-style) -->
+    <div
+      class="pointer-events-none absolute inset-x-0 top-0 h-[45vh] transition-opacity duration-700"
+      :style="ambientStyle"
+    />
+
+    <div class="container mx-auto px-4 py-4 max-w-lg h-full flex flex-col relative">
       <!-- Search Bar -->
       <div class="mb-2 flex-shrink-0">
         <SearchBar
           :group-id="groupId"
-          placeholder="Search for tracks to add..."
+          placeholder="Rechercher un titre à ajouter..."
           @track-added="handleTrackAdded"
         />
       </div>
@@ -15,6 +21,8 @@
         <CurrentTrack
           :track="currentTrack"
           :loading="trackLoading"
+          :is-playing="isPlaying"
+          :progress-ms="progressMs"
         />
       </div>
 
@@ -31,31 +39,54 @@
         />
       </div>
 
+      <!-- Bottom action bar (hidden while the drawer is open — it has its own close affordances) -->
+      <div
+        class="fixed bottom-0 inset-x-0 z-[45] pointer-events-none transition-opacity duration-200"
+        :class="showQueue ? 'opacity-0' : ''"
+      >
+        <div class="max-w-lg mx-auto flex items-center justify-between px-6 pb-6 pt-2">
+          <div class="flex items-center gap-3" :class="showQueue ? '' : 'pointer-events-auto'">
+            <!-- Share (QR) -->
+            <button
+              class="group-action-button"
+              title="Partager le groupe"
+              @click="showShareModal = true"
+            >
+              <Icon name="heroicons:qr-code" class="w-5 h-5" />
+            </button>
+
+            <!-- Queue toggle -->
+            <button
+              class="group-action-button"
+              title="File d'attente"
+              @click="showQueue = true"
+            >
+              <Icon name="heroicons:queue-list" class="w-5 h-5" />
+            </button>
+          </div>
+
+          <!-- Leave group -->
+          <button
+            class="group-action-button hover:text-red-400"
+            :class="showQueue ? '' : 'pointer-events-auto'"
+            title="Quitter le groupe"
+            @click="leaveGroup"
+          >
+            <Icon name="heroicons:arrow-right-start-on-rectangle" class="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+
       <!-- Queue Drawer -->
       <QueueDrawer
         :queue="queue"
         :group-id="groupId"
+        :is-open="showQueue"
+        @close="showQueue = false"
         @refresh="refreshQueue"
         @clear="clearQueue"
-        @show-share="showShareModal = true"
       />
 
-      <!-- Floating Leave Group Button -->
-      <button
-        @click="leaveGroup"
-        :class="[
-          'fixed bottom-6 right-6 z-40',
-          'w-12 h-12',
-          'rounded-full',
-          'flex items-center justify-center',
-          'transition-all duration-200 transform',
-          'hover:scale-110'
-        ]"
-        title="Leave Group"
-      >
-        <Icon name="heroicons:arrow-right-start-on-rectangle" class="w-6 h-6 text-[#1DB954]" />
-      </button>
-      
       <!-- Group Code Modal -->
       <GroupCodeModal
         :is-open="showShareModal"
@@ -67,6 +98,12 @@
   </div>
 </template>
 
+<style scoped>
+.group-action-button {
+  @apply w-12 h-12 rounded-full flex items-center justify-center text-white bg-spotify-highlight/80 backdrop-blur-md shadow-lg shadow-black/40 transition-all duration-200 hover:scale-110 hover:bg-spotify-press;
+}
+</style>
+
 <script setup lang="ts">
 // Get route params
 const route = useRoute()
@@ -77,12 +114,32 @@ const { status, data, signOut } = useAuth()
 
 // State
 const group = ref(null)
-const currentTrack = ref(null)
+const currentTrack = ref<any>(null)
 const trackLoading = ref(false)
 const skipVotes = ref(0)
 const totalMembers = ref(1)
 const hasVoted = ref(false)
 const showShareModal = ref(false)
+const showQueue = ref(false)
+const progressMs = ref<number | null>(null)
+const isPlaying = ref(false)
+
+// Ambient gradient extracted from the album art
+const albumImageUrl = computed(() => currentTrack.value?.album?.images?.[0]?.url || null)
+const { color: ambientColor } = useDominantColor(albumImageUrl)
+
+const ambientStyle = computed(() => {
+  if (!currentTrack.value) {
+    return { opacity: 0 }
+  }
+  const tint = ambientColor.value
+    ? ambientColor.value.replace('rgb(', 'rgba(').replace(')', ', 0.45)')
+    : 'rgba(29, 185, 84, 0.25)'
+  return {
+    opacity: 1,
+    background: `linear-gradient(to bottom, ${tint}, transparent)`
+  }
+})
 
 // Queue data
 const queue = ref([])
@@ -129,6 +186,8 @@ const refreshCurrentTrack = async () => {
     const response = await $fetch(`/api/groups/${groupId}/current-track`)
     if (response.success) {
       currentTrack.value = response.currentTrack
+      progressMs.value = response.progressMs ?? null
+      isPlaying.value = response.isPlaying ?? false
     }
   } catch (error) {
     // Silent fail
@@ -149,8 +208,12 @@ const initializeGroupConnection = async () => {
     groupSSE.value = useGroupSSE({
       groupId,
       userId,
-      onPlaybackUpdate: (playbackData) => {
+      onPlaybackUpdate: (playbackData: any) => {
         currentTrack.value = playbackData.currentTrack
+        if ('progressMs' in playbackData) {
+          progressMs.value = playbackData.progressMs
+          isPlaying.value = playbackData.isPlaying ?? false
+        }
       },
       onQueueUpdate: (queueData) => {
         queue.value = queueData.queue.map(track => ({
@@ -168,12 +231,8 @@ const initializeGroupConnection = async () => {
         // Could show a toast notification here
       },
       onVoteUpdate: (voteData) => {
-        console.log('[DEBUG FRONT] Vote update received:', voteData)
-        console.log('[DEBUG FRONT] Before update - skipVotes:', skipVotes.value, 'totalMembers:', totalMembers.value, 'hasVoted:', hasVoted.value)
-
-        // Ignore les mises à jour qui n'ont pas votedUserIds (ce sont les anciennes)
+        // Ignore stale updates that don't carry the voter list.
         if (!voteData.votedUserIds) {
-          console.log('[DEBUG FRONT] Ignoring vote update without votedUserIds')
           return
         }
 
@@ -181,10 +240,6 @@ const initializeGroupConnection = async () => {
         totalMembers.value = voteData.totalMembers
         const currentUserId = data.value?.user?.id || data.value?.user?.email
         hasVoted.value = voteData.votedUserIds.includes(currentUserId)
-
-        console.log('[DEBUG FRONT] After update - skipVotes:', skipVotes.value, 'totalMembers:', totalMembers.value, 'hasVoted:', hasVoted.value)
-        console.log('[DEBUG FRONT] Show counter condition (skipVotes > 0):', skipVotes.value > 0)
-        console.log('[DEBUG FRONT] currentUserId:', currentUserId, 'votedUserIds:', voteData.votedUserIds)
       },
       onGroupDeleted: (deletedData) => {
         // Group has been deleted by admin, disconnect and redirect
@@ -201,9 +256,6 @@ const initializeGroupConnection = async () => {
       if (joinResult.success) {
         group.value = joinResult.group
         totalMembers.value = joinResult.group.members?.length || 1
-
-        console.log('[DEBUG FRONT] Group joined - members count:', totalMembers.value)
-        console.log('[DEBUG FRONT] Group members:', joinResult.group.members)
 
         // Connect to SSE stream
         groupSSE.value.connect()
@@ -241,10 +293,8 @@ const handleTrackAdded = async (track: any) => {
   }
 }
 
-const handleVoteUpdate = async (result: any) => {
-  // Ne rien faire, l'endpoint /skip gère déjà la diffusion SSE
-  console.log('[DEBUG FRONT] handleVoteUpdate called with:', result)
-  console.log('[DEBUG FRONT] Skipping notifyVoteUpdate - already handled by /skip endpoint')
+const handleVoteUpdate = async () => {
+  // Nothing to do: the /skip endpoint already broadcasts the vote update over SSE.
 }
 
 const handleSkipped = () => {

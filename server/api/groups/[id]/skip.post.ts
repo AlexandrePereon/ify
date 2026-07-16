@@ -1,75 +1,47 @@
 import { groupService } from '~/server/services/groups'
 import { SpotifyService } from '~/server/services/spotify'
-import { getServerSession } from '#auth'
 
 export default defineEventHandler(async (event) => {
   try {
     const groupId = getRouterParam(event, 'id')
-    const session = await getServerSession(event)
-    
-    if (!session?.user) {
-      throw createError({
-        statusCode: 401,
-        statusMessage: 'Not authenticated'
-      })
-    }
 
-    if (!groupId) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Group ID required'
-      })
-    }
+    // Only authenticated members may vote to skip.
+    const { userId, group } = await requireGroupMember(event, groupId)
 
-    const userId = session.user.email || session.user.id || 'unknown'
+    enforceRateLimit(rateLimitKey(event, `skip:${group.id}`, userId), 20, 10_000)
 
     // Vote to skip
-    const voteResult = groupService.voteSkip(groupId, userId)
+    const voteResult = groupService.voteSkip(group.id, userId)
 
     // Broadcast vote update to all group members
-    const voteData = groupService.getVoteData(groupId)
+    const voteData = groupService.getVoteData(group.id)
     if (voteData) {
-      await groupService.broadcastToGroup(groupId, {
+      await groupService.broadcastToGroup(group.id, {
         type: 'vote_update',
         data: voteData
       })
     }
 
     // Check if majority reached
-    if (groupService.shouldSkip(groupId)) {
-      console.log('[DEBUG] Majority reached, attempting to skip...')
-
-      // Get admin's Spotify tokens
-      const tokens = groupService.getAdminTokens(groupId)
+    if (groupService.shouldSkip(group.id)) {
+      const tokens = groupService.getAdminTokens(group.id)
       if (tokens) {
-        console.log('[DEBUG] Admin tokens found, creating Spotify service...')
+        const spotifyService = new SpotifyService(
+          tokens.accessToken,
+          tokens.refreshToken,
+          group.id
+        )
 
-        try {
-          // Use admin's tokens to skip track
-          const spotifyService = new SpotifyService(
-            tokens.accessToken,
-            tokens.refreshToken,
-            groupId
-          )
+        await spotifyService.skipToNext()
 
-          console.log('[DEBUG] Calling skipToNext...')
-          await spotifyService.skipToNext()
+        // Clear votes after successful skip
+        groupService.clearSkipVotes(group.id)
 
-          console.log('[DEBUG] Skip successful, clearing votes...')
-          // Clear votes after successful skip
-          groupService.clearSkipVotes(groupId)
-
-          return {
-            success: true,
-            skipped: true,
-            message: 'Track skipped'
-          }
-        } catch (skipError) {
-          console.error('[DEBUG] Error during skip:', skipError)
-          throw skipError
+        return {
+          success: true,
+          skipped: true,
+          message: 'Track skipped'
         }
-      } else {
-        console.log('[DEBUG] No admin tokens found')
       }
     }
 
@@ -81,7 +53,9 @@ export default defineEventHandler(async (event) => {
       totalMembers: voteResult.totalMembers,
       message: voteResult.voted ? 'Vote added' : 'Vote removed'
     }
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.statusCode) throw error
+    console.error('Skip vote error:', error)
     throw createError({
       statusCode: 500,
       statusMessage: 'Failed to process skip vote'

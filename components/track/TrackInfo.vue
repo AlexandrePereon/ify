@@ -2,7 +2,7 @@
   <div class="text-center space-y-2">
     <!-- Track Title -->
     <h2 :class="[
-      'font-bold text-white',
+      'font-extrabold tracking-tight text-white',
       titleSizeClasses
     ]">
       {{ track?.name || fallbackTitle }}
@@ -10,7 +10,7 @@
 
     <!-- Artist Names -->
     <p :class="[
-      'text-gray-400',
+      'text-spotify-subdued',
       artistSizeClasses
     ]">
       {{ artistNames || fallbackArtist }}

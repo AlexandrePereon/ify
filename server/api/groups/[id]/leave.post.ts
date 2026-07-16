@@ -1,42 +1,37 @@
 import { groupService } from '~/server/services/groups'
-import { spotifyPollingService } from '~/server/services/spotify-polling'
 
 export default defineEventHandler(async (event) => {
   try {
     const groupId = getRouterParam(event, 'id')
-    const body = await readBody(event)
-    const { userId } = body
 
-    if (!groupId || !userId) {
+    if (!groupId) {
       throw createError({
         statusCode: 400,
-        statusMessage: 'Group ID and User ID required'
+        statusMessage: 'Group ID required'
       })
     }
 
-    // Remove user's event stream
+    // A user may only remove themselves — identity comes from the session,
+    // never from the body (otherwise anyone could evict the admin and delete
+    // the group).
+    const { userId } = await requireUserId(event)
+
+    // Remove the user's event stream (this also stops polling when the group
+    // becomes empty) and then remove them from the roster (admin leaving =
+    // group deletion).
     groupService.removeEventStream(groupId, userId)
-    
-    // Remove user from group (this will handle admin leaving = group deletion)
     await groupService.leaveGroup(groupId, userId)
-
-    // Check if any users are still connected to this group
-    const group = groupService.getGroup(groupId)
-    if (group && group.eventStreams.size === 0) {
-      // No more connected clients, stop polling for this group
-      spotifyPollingService.stopPolling(groupId)
-    }
-
 
     return {
       success: true,
       message: 'Left group successfully'
     }
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.statusCode) throw error
     console.error('Leave group error:', error)
     throw createError({
       statusCode: 500,
-      statusMessage: `Failed to leave group: ${error.message || error}`
+      statusMessage: 'Failed to leave group'
     })
   }
 })

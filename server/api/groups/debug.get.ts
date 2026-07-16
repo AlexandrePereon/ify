@@ -1,6 +1,11 @@
 import { groupService } from '~/server/services/groups'
 
 export default defineEventHandler(async (event) => {
+  // This endpoint exposes group codes and admin identities — never in production.
+  if (!import.meta.dev) {
+    throw createError({ statusCode: 404, statusMessage: 'Not found' })
+  }
+
   const groups = groupService.getAllGroups()
   
   return {

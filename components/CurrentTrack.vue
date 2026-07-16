@@ -1,13 +1,14 @@
 <template>
-  <div class="flex flex-col items-center text-center py-4">
+  <div class="flex flex-col items-center text-center py-4 w-full">
     <!-- Track Image Component -->
-    <div class="mb-4">
+    <div class="mb-6">
       <TrackImage
         :image-url="track?.album?.images?.[0]?.url"
         :alt="track?.name"
         :size="size"
         :loading="loading"
-        placeholder-text="No track playing"
+        :is-playing="isPlaying"
+        placeholder-text="Aucune lecture en cours"
       />
     </div>
 
@@ -16,8 +17,16 @@
       :track="track"
       :size="size"
       :show-details="showDetails"
-      fallback-title="No track selected"
-      fallback-artist="Choose a track to get started"
+      fallback-title="Aucun titre sélectionné"
+      fallback-artist="Choisissez un titre pour commencer"
+    />
+
+    <!-- Progress Bar -->
+    <TrackProgress
+      v-if="track"
+      :progress-ms="progressMs"
+      :duration-ms="track?.duration_ms"
+      :is-playing="isPlaying"
     />
   </div>
 </template>
@@ -40,13 +49,17 @@ interface Props {
   loading?: boolean
   size?: 'small' | 'medium' | 'large'
   showDetails?: boolean
+  isPlaying?: boolean
+  progressMs?: number | null
 }
 
 const props = withDefaults(defineProps<Props>(), {
   track: null,
   loading: false,
   size: 'large',
-  showDetails: true
+  showDetails: true,
+  isPlaying: false,
+  progressMs: null
 })
 </script>
 

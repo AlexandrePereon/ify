@@ -1,38 +1,5 @@
 <template>
   <div>
-    <!-- Floating Share Button -->
-    <button
-      :class="[
-        'fixed bottom-24 left-6 z-40',
-        'w-12 h-12',
-        'rounded-full',
-        'flex items-center justify-center',
-        'transition-all duration-200 transform',
-        'hover:scale-110'
-      ]"
-      @click="$emit('showShare')"
-    >
-      <Icon name="heroicons:qr-code" class="w-6 h-6 text-[#1DB954]" />
-    </button>
-
-    <!-- Floating Queue Button -->
-    <button
-      :class="[
-        'fixed bottom-6 left-6 z-40',
-        'w-12 h-12',
-        'rounded-full',
-        'flex items-center justify-center',
-        'transition-all duration-200 transform',
-        isOpen ? 'rotate-180' : 'hover:scale-110'
-      ]"
-      @click="toggleDrawer"
-    >
-      <Icon 
-        :name="isOpen ? 'heroicons:x-mark' : 'heroicons:queue-list'" 
-        class="w-6 h-6 text-[#1DB954] transition-transform duration-200"
-      />
-    </button>
-    
     <!-- Overlay -->
     <Transition
       name="overlay"
@@ -45,11 +12,11 @@
     >
       <div
         v-if="isOpen"
-        class="fixed inset-0 bg-black bg-opacity-50 z-30"
+        class="fixed inset-0 bg-black/60 z-30"
         @click="closeDrawer"
       />
     </Transition>
-    
+
     <!-- Drawer Panel -->
     <Transition
       name="drawer"
@@ -62,104 +29,98 @@
     >
       <div
         v-if="isOpen"
-        class="fixed bottom-0 left-0 right-0 z-40 bg-gray-900 rounded-t-2xl shadow-2xl"
-        style="height: 70%"
+        class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-lg z-40 h-[70vh] bg-spotify-elevated rounded-t-2xl shadow-2xl shadow-black/80 flex flex-col"
       >
         <!-- Drag Handle -->
-        <div class="w-full flex justify-center pt-3 pb-2">
-          <div class="w-12 h-1 bg-gray-600 rounded-full" />
+        <div class="w-full flex justify-center pt-3 pb-2 flex-shrink-0">
+          <div class="w-12 h-1 bg-white/20 rounded-full" />
         </div>
-        
+
         <!-- Header -->
-        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-700">
-          <h3 class="text-xl font-semibold text-white">Queue</h3>
+        <div class="flex items-center justify-between px-6 py-4 border-b border-white/5 flex-shrink-0">
+          <h3 class="text-xl font-extrabold tracking-tight text-white">File d'attente</h3>
           <button
             @click="closeDrawer"
-            class="text-gray-400 hover:text-white transition-colors"
+            class="text-spotify-subdued hover:text-white transition-colors"
           >
             <Icon name="heroicons:x-mark" class="w-6 h-6" />
           </button>
         </div>
-      <!-- Queue Content -->
-      <div class="h-full flex flex-col">
-        
+
         <!-- Queue List -->
-        <div class="flex-1 overflow-y-auto px-6 py-4">
+        <div class="flex-1 overflow-y-auto px-4 py-4">
           <div v-if="queue.length === 0" class="text-center py-12">
-            <Icon name="heroicons:queue-list" class="w-16 h-16 text-gray-600 mx-auto mb-4" />
-            <p class="text-gray-500 text-lg">Queue is empty</p>
-            <p class="text-gray-600 text-sm mt-2">Add tracks using the search above</p>
+            <Icon name="heroicons:queue-list" class="w-16 h-16 text-white/10 mx-auto mb-4" />
+            <p class="text-spotify-subdued text-lg">La file est vide</p>
+            <p class="text-spotify-subdued/60 text-sm mt-2">Ajoutez des titres via la recherche</p>
           </div>
-          
-          <div v-else class="space-y-3">
+
+          <div v-else class="space-y-1">
             <!-- Queue Track Items -->
             <div
               v-for="(track, index) in queue"
               :key="track.id || index"
               :class="[
-                'flex items-center gap-3 p-3 rounded-lg transition-colors',
-                index === 0 ? 'bg-green-900/20 border border-green-500/30' : 'bg-gray-800/50 hover:bg-gray-700/50'
+                'flex items-center gap-3 p-2.5 rounded-lg transition-colors',
+                index === 0 ? 'bg-spotify-green/10' : 'hover:bg-spotify-highlight'
               ]"
             >
               <!-- Track Image -->
-              <div class="relative">
-                <img
-                  v-if="track.image"
-                  :src="track.image"
-                  :alt="track.name"
-                  class="w-12 h-12 rounded-lg object-cover"
-                />
-                <div v-else class="w-12 h-12 bg-gray-700 rounded-lg flex items-center justify-center">
-                  <Icon name="heroicons:musical-note" class="w-6 h-6 text-gray-500" />
-                </div>
-                
-                <!-- Playing Indicator -->
-                <div
-                  v-if="index === 0"
-                  class="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center"
-                >
-                  <Icon name="heroicons:play" class="w-2.5 h-2.5 text-black" />
-                </div>
+              <img
+                v-if="track.image"
+                :src="track.image"
+                :alt="track.name"
+                class="w-12 h-12 rounded object-cover flex-shrink-0"
+              />
+              <div v-else class="w-12 h-12 bg-spotify-highlight rounded flex items-center justify-center flex-shrink-0">
+                <Icon name="heroicons:musical-note" class="w-6 h-6 text-spotify-subdued" />
               </div>
-              
+
               <!-- Track Info -->
               <div class="flex-1 min-w-0">
-                <p class="text-white font-medium truncate">{{ track.name }}</p>
-                <p class="text-gray-400 text-sm truncate">
-                  {{ track.artists?.join(', ') || 'Unknown Artist' }}
+                <p v-if="index === 0" class="text-spotify-green text-[10px] font-bold uppercase tracking-widest">
+                  À suivre
                 </p>
-                <p v-if="track.addedBy" class="text-green-400 text-xs mt-1">
-                  Added by {{ track.addedBy }}
+                <p
+                  :class="['font-medium truncate', index === 0 ? 'text-spotify-green' : 'text-white']"
+                >
+                  {{ track.name }}
+                </p>
+                <p class="text-spotify-subdued text-sm truncate">
+                  {{ track.artists?.join(', ') || 'Artiste inconnu' }}
+                </p>
+                <p v-if="track.addedBy" class="text-spotify-subdued/60 text-xs mt-0.5">
+                  Ajouté par {{ track.addedBy }}
                 </p>
               </div>
             </div>
           </div>
         </div>
-        
+
         <!-- Queue Actions -->
-        <div class="px-6 py-4 bg-gray-800 border-t border-gray-700">
+        <div class="px-6 py-4 border-t border-white/5 flex-shrink-0">
           <div class="flex justify-between items-center">
             <button
               v-if="queue.length > 0"
               @click="clearQueue"
               class="text-red-400 hover:text-red-300 text-sm transition-colors"
             >
-              Clear Queue
+              Vider la file
             </button>
+            <span v-else></span>
             <button
               @click="refreshQueue"
               :disabled="refreshing"
-              class="text-green-400 hover:text-green-300 text-sm transition-colors disabled:opacity-50"
+              class="text-spotify-subdued hover:text-white text-sm transition-colors disabled:opacity-50 inline-flex items-center gap-1.5"
             >
-              <Icon 
-                name="heroicons:arrow-path" 
-                :class="['w-4 h-4 inline mr-1', refreshing ? 'animate-spin' : '']"
+              <Icon
+                name="heroicons:arrow-path"
+                :class="['w-4 h-4', refreshing ? 'animate-spin' : '']"
               />
-              Refresh
+              Actualiser
             </button>
           </div>
         </div>
-      </div>
       </div>
     </Transition>
   </div>
@@ -178,37 +139,33 @@ interface QueueTrack {
 interface Props {
   queue?: QueueTrack[]
   groupId?: string
+  isOpen?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   queue: () => [],
-  groupId: undefined
+  groupId: undefined,
+  isOpen: false
 })
 
 const emit = defineEmits<{
+  close: []
   refresh: []
   clear: []
-  showShare: []
 }>()
 
 // State
-const isOpen = ref(false)
 const refreshing = ref(false)
 
-
 // Methods
-const toggleDrawer = () => {
-  isOpen.value = !isOpen.value
-}
-
 const closeDrawer = () => {
-  isOpen.value = false
+  emit('close')
 }
 
 const refreshQueue = async () => {
   refreshing.value = true
   emit('refresh')
-  
+
   // Simulate API call delay
   setTimeout(() => {
     refreshing.value = false
@@ -219,16 +176,15 @@ const clearQueue = () => {
   emit('clear')
 }
 
-
 // Close drawer on escape key
 onMounted(() => {
   const handleEscape = (e: KeyboardEvent) => {
-    if (e.key === 'Escape' && isOpen.value) {
+    if (e.key === 'Escape' && props.isOpen) {
       closeDrawer()
     }
   }
   document.addEventListener('keydown', handleEscape)
-  
+
   onUnmounted(() => {
     document.removeEventListener('keydown', handleEscape)
   })

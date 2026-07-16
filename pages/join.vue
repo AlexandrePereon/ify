@@ -1,174 +1,168 @@
 <template>
-  <div class="spotify-main h-screen overflow-hidden">
-    <div class="container mx-auto px-4 py-16 h-full">
-      <div class="max-w-md mx-auto text-center">
-        <!-- Back to home -->
-        <div class="mb-8 text-left">
-          <NuxtLink
-            to="/"
-            class="text-gray-400 hover:text-white transition-colors flex items-center space-x-2"
-          >
-            <Icon name="heroicons:arrow-left" class="w-4 h-4" />
-            <span>Back</span>
-          </NuxtLink>
-        </div>
+  <div class="spotify-main min-h-screen px-4 py-10">
+    <div class="max-w-md mx-auto text-center">
+      <!-- Back to home -->
+      <div class="mb-8 text-left">
+        <NuxtLink
+          to="/"
+          class="inline-flex items-center gap-2 text-spotify-subdued hover:text-white transition-colors"
+        >
+          <Icon name="heroicons:arrow-left" class="w-4 h-4" />
+          <span>Retour</span>
+        </NuxtLink>
+      </div>
 
-        <!-- Logo/Title -->
-        <div class="mb-8">
-          <h1 class="text-4xl font-bold text-white mb-2">
-            <span class="text-green-500">I</span>FY
-          </h1>
-          <p class="text-gray-400">
-            Join a group
-          </p>
-        </div>
+      <!-- Logo/Title -->
+      <div class="mb-10">
+        <h1 class="text-4xl font-extrabold tracking-tighter text-white mb-2">
+          <span class="text-spotify-green">I</span>FY
+        </h1>
+        <p class="text-spotify-subdued">
+          Rejoindre un groupe
+        </p>
+      </div>
 
 
-        <!-- QR Scanner (Mobile priority) -->
-        <div v-if="!joining && showQRScanner && !groupCode" class="space-y-4">
-          <!-- Toggle Button -->
-          <div class="text-center">
-            <button
-              @click="toggleInput"
-              class="text-green-500 hover:text-green-400 transition-colors text-sm underline"
-            >
-              Enter code manually
-            </button>
+      <!-- QR Scanner (Mobile priority) -->
+      <div v-if="!joining && showQRScanner && !groupCode" class="space-y-6">
+        <!-- Camera View -->
+        <div class="relative spotify-card overflow-hidden rounded-2xl">
+          <QrcodeStream
+            @detect="onDetect"
+            @error="onError"
+            @camera-on="onCameraReady"
+            @camera-off="onCameraOff"
+            class="w-full aspect-square object-cover"
+          />
+
+          <!-- Viewfinder overlay -->
+          <div v-if="!cameraError" class="absolute inset-10 pointer-events-none">
+            <span class="absolute top-0 left-0 w-10 h-10 border-t-4 border-l-4 border-spotify-green rounded-tl-2xl"></span>
+            <span class="absolute top-0 right-0 w-10 h-10 border-t-4 border-r-4 border-spotify-green rounded-tr-2xl"></span>
+            <span class="absolute bottom-0 left-0 w-10 h-10 border-b-4 border-l-4 border-spotify-green rounded-bl-2xl"></span>
+            <span class="absolute bottom-0 right-0 w-10 h-10 border-b-4 border-r-4 border-spotify-green rounded-br-2xl"></span>
           </div>
 
-          <!-- Camera View -->
-          <div class="relative bg-gray-800 rounded-lg overflow-hidden">
-            <QrcodeStream
-              @detect="onDetect"
-              @error="onError"
-              @camera-on="onCameraReady"
-              @camera-off="onCameraOff"
-              class="w-full aspect-square object-cover"
-            />
-            
-            <!-- Error overlay -->
-            <div v-if="cameraError" class="absolute inset-0 flex items-center justify-center bg-gray-800 bg-opacity-90">
-              <div class="text-center text-gray-400">
-                <Icon name="heroicons:exclamation-triangle" class="w-12 h-12 mx-auto mb-2" />
-                <p class="text-sm mb-3">{{ cameraError }}</p>
-                <p class="text-xs text-gray-500">Use HTTPS or enter code manually</p>
-              </div>
+          <!-- Error overlay -->
+          <div v-if="cameraError" class="absolute inset-0 flex items-center justify-center bg-spotify-elevated/95">
+            <div class="text-center text-spotify-subdued px-6">
+              <Icon name="heroicons:exclamation-triangle" class="w-12 h-12 mx-auto mb-2" />
+              <p class="text-sm mb-3">{{ cameraError }}</p>
+              <p class="text-xs text-spotify-subdued/70">Utilisez HTTPS ou saisissez le code manuellement</p>
             </div>
           </div>
         </div>
 
-        <!-- Name input after QR scan -->
-        <div v-if="!joining && showQRScanner && groupCode" class="space-y-6">
-          <div class="text-center mb-4">
-            <div class="inline-block px-4 py-2 bg-green-500 bg-opacity-20 border border-green-500 rounded-lg">
-              <Icon name="heroicons:check-circle" class="w-5 h-5 inline text-green-500 mr-2" />
-              <span class="text-green-500 font-mono font-semibold">{{ groupCode }}</span>
-            </div>
-            <p class="text-gray-400 text-sm mt-2">Code detected! Enter your name:</p>
-          </div>
+        <p class="text-spotify-subdued text-sm">Scannez le QR code du groupe</p>
 
-          <div>
-            <input
-              v-model="guestName"
-              type="text"
-              placeholder="Your name"
-              class="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-center"
-              maxlength="30"
-              @keyup.enter="joinAsGuest"
-              ref="nameInput"
-            />
+        <!-- Toggle Button -->
+        <button
+          @click="toggleInput"
+          class="spotify-button-secondary w-full"
+        >
+          <Icon name="heroicons:pencil-square" class="w-4 h-4" />
+          <span>Saisir le code manuellement</span>
+        </button>
+      </div>
+
+      <!-- Name input after QR scan -->
+      <div v-if="!joining && showQRScanner && groupCode" class="space-y-6">
+        <div class="text-center mb-4">
+          <div class="inline-flex items-center gap-2 px-4 py-2 bg-spotify-green/15 border border-spotify-green/60 rounded-full">
+            <Icon name="heroicons:check-circle" class="w-5 h-5 text-spotify-green" />
+            <span class="text-spotify-green font-mono font-bold tracking-[0.2em]">{{ groupCode }}</span>
           </div>
-          
+          <p class="text-spotify-subdued text-sm mt-3">Code détecté ! Entrez votre nom :</p>
+        </div>
+
+        <div>
+          <input
+            v-model="guestName"
+            type="text"
+            placeholder="Votre nom"
+            class="spotify-input w-full text-center"
+            maxlength="30"
+            @keyup.enter="joinAsGuest"
+            ref="nameInput"
+          />
+        </div>
+
+        <button
+          @click="joinAsGuest"
+          :disabled="!guestName.trim() || joining"
+          class="spotify-button w-full"
+        >
+          Rejoindre {{ groupCode }}
+        </button>
+
+        <div class="text-center">
           <button
-            @click="joinAsGuest"
-            :disabled="!guestName.trim() || joining"
-            class="w-full px-4 py-3 bg-green-500 hover:bg-green-400 disabled:bg-gray-600 disabled:opacity-50 text-black font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
+            @click="resetScan"
+            class="text-spotify-subdued hover:text-white transition-colors text-sm"
           >
-            Join {{ groupCode }}
+            Scanner un autre code
           </button>
-
-          <div class="text-center">
-            <button
-              @click="resetScan"
-              class="text-gray-400 hover:text-white transition-colors text-sm underline"
-            >
-              Scan another code
-            </button>
-          </div>
-
-          <div v-if="error" class="text-red-400 text-sm text-center">
-            {{ error }}
-          </div>
         </div>
 
-        <!-- Manual Input Form -->
-        <div v-else-if="!joining && !showQRScanner" class="space-y-6">
-          <div>
-            <input
-              v-model="groupCode"
-              type="text"
-              placeholder="Group code"
-              class="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent uppercase text-center font-mono"
-              maxlength="6"
-              @input="groupCode = groupCode.toUpperCase()"
-            />
-          </div>
-          
-          <div v-if="status !== 'authenticated'">
-            <input
-              v-model="guestName"
-              type="text"
-              placeholder="Your name"
-              class="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-center"
-              maxlength="30"
-              @keyup.enter="joinAsGuest"
-            />
-          </div>
+        <div v-if="error" class="text-red-400 text-sm text-center">
+          {{ error }}
+        </div>
+      </div>
 
-          <!-- Show user info if authenticated -->
-          <div v-else class="text-center p-4 bg-gray-800 rounded-lg border border-gray-600">
-            <p class="text-gray-400 text-sm mb-1">Joining as:</p>
-            <p class="text-white font-semibold">{{ data?.user?.name }}</p>
-            <div class="flex items-center justify-center mt-2">
-              <Icon
-                :name="data?.user?.type === 'guest' ? 'heroicons:user' : 'simple-icons:spotify'"
-                :class="data?.user?.type === 'guest' ? 'w-4 h-4 text-gray-400' : 'w-4 h-4 text-green-500'"
-              />
-              <span class="ml-2 text-sm text-gray-400">
-                {{ data?.user?.type === 'guest' ? 'Guest' : 'Spotify' }}
-              </span>
-            </div>
-          </div>
-
-          <!-- Scanner toggle for capable devices -->
-          <div v-if="hasCamera" class="text-center">
-            <button
-            class="text-green-500 hover:text-green-400 transition-colors text-sm underline flex items-center justify-center gap-2"
-              @click="toggleInput"
-            >
-              <Icon name="heroicons:qr-code" class="w-4 h-4" />
-              Scan QR code
-            </button>
-          </div>
-          
-          <button
-            @click="status === 'authenticated' ? joinExistingUser() : joinAsGuest()"
-            :disabled="!groupCode.trim() || groupCode.length < 3 || (status !== 'authenticated' && !guestName.trim()) || joining"
-            class="w-full px-4 py-3 bg-green-500 hover:bg-green-400 disabled:bg-gray-600 disabled:opacity-50 text-black font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
-          >
-            {{ status === 'authenticated' ? 'Join group' : 'Join as guest' }}
-          </button>
-
-          <div v-if="error" class="text-red-400 text-sm text-center">
-            {{ error }}
-          </div>
+      <!-- Manual Input Form -->
+      <div v-else-if="!joining && !showQRScanner" class="space-y-6">
+        <div class="space-y-3">
+          <p class="text-spotify-subdued text-xs uppercase tracking-widest">Code du groupe</p>
+          <CodeInput v-model="groupCode" />
         </div>
 
-        <!-- Joining State -->
-        <div v-else-if="joining" class="space-y-4">
-          <Icon name="heroicons:arrow-path" class="w-8 h-8 animate-spin mx-auto text-green-500" />
-          <p class="text-gray-400">Joining group...</p>
+        <div v-if="status !== 'authenticated'">
+          <input
+            v-model="guestName"
+            type="text"
+            placeholder="Votre nom"
+            class="spotify-input w-full text-center"
+            maxlength="30"
+            @keyup.enter="joinAsGuest"
+          />
         </div>
+
+        <!-- Show user info if authenticated -->
+        <UserChip
+          v-else
+          :name="data?.user?.name || 'Utilisateur'"
+          :image="data?.user?.image"
+          :type="data?.user?.type || 'spotify'"
+          label="Vous rejoignez en tant que"
+        />
+
+        <button
+          @click="status === 'authenticated' ? joinExistingUser() : joinAsGuest()"
+          :disabled="!groupCode.trim() || groupCode.length < 6 || (status !== 'authenticated' && !guestName.trim()) || joining"
+          class="spotify-button w-full"
+        >
+          {{ status === 'authenticated' ? 'Rejoindre le groupe' : "Rejoindre en tant qu'invité" }}
+        </button>
+
+        <!-- Scanner toggle for capable devices -->
+        <button
+          v-if="hasCamera"
+          class="spotify-button-secondary w-full"
+          @click="toggleInput"
+        >
+          <Icon name="heroicons:qr-code" class="w-4 h-4" />
+          <span>Scanner un QR code</span>
+        </button>
+
+        <div v-if="error" class="text-red-400 text-sm text-center">
+          {{ error }}
+        </div>
+      </div>
+
+      <!-- Joining State -->
+      <div v-else-if="joining" class="space-y-4">
+        <Icon name="heroicons:arrow-path" class="w-8 h-8 animate-spin mx-auto text-spotify-green" />
+        <p class="text-spotify-subdued">Connexion au groupe...</p>
       </div>
     </div>
   </div>
@@ -381,6 +375,6 @@ onUnmounted(() => {
 
 // Metadata
 useHead({
-  title: `Join Group - IFY`
+  title: `Rejoindre un groupe - IFY`
 })
 </script>

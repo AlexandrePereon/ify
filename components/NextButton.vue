@@ -6,11 +6,11 @@
       :disabled="disabled || loading"
       :class="[
         'relative flex items-center justify-center',
-        'px-6 py-3 rounded-full font-semibold text-base',
-        'bg-green-500 hover:bg-green-400 text-black',
+        'px-8 py-3 rounded-full font-bold text-base',
+        'bg-spotify-green hover:bg-spotify-green-hover text-black',
         'shadow-lg hover:shadow-xl',
         'transition-all duration-200 transform',
-        'focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-black',
+        'focus:outline-none focus:ring-2 focus:ring-white/70 focus:ring-offset-2 focus:ring-offset-spotify-base',
         'disabled:opacity-50 disabled:cursor-not-allowed',
         loading ? 'cursor-wait' : 'hover:scale-105'
       ]"
@@ -26,27 +26,33 @@
         name="heroicons:arrow-path"
         class="w-5 h-5 mr-2 animate-spin"
       />
-      {{ loading ? 'Processing...' : 'Next' }}
+      {{ loading ? 'Patientez...' : 'Suivant' }}
     </button>
-    
+
     <!-- Vote Counter (shown when votes are active, clickable to remove vote) -->
     <button
       v-if="showVoteCounter"
       :disabled="loading"
-      class="flex items-center space-x-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-full border border-gray-600 transition-colors duration-200 cursor-pointer"
+      class="flex items-center gap-3 px-5 py-2.5 bg-spotify-elevated hover:bg-spotify-highlight rounded-full border border-white/10 transition-colors duration-200 cursor-pointer"
       @click="handleNext"
     >
-      <Icon name="heroicons:hand-raised" class="w-4 h-4 text-orange-400" />
-      <div class="flex flex-col">
-        <span class="text-sm text-gray-300">
-          {{ skipVotes }}/{{ Math.floor(totalMembers / 2) + 1 }} votes to skip
+      <Icon name="heroicons:forward" class="w-4 h-4 text-spotify-green flex-shrink-0" />
+      <div class="flex flex-col items-start gap-1">
+        <span class="text-sm text-white font-medium">
+          {{ skipVotes }}/{{ voteThreshold }} votes pour passer
         </span>
-        <span class="text-xs text-gray-500">(click to remove vote)</span>
+        <div class="w-28 h-1 bg-white/15 rounded-full overflow-hidden">
+          <div
+            class="h-full bg-spotify-green rounded-full transition-all duration-300"
+            :style="{ width: Math.min(100, (skipVotes / voteThreshold) * 100) + '%' }"
+          />
+        </div>
+        <span class="text-[11px] text-spotify-subdued">Appuyez pour annuler votre vote</span>
       </div>
     </button>
-    
+
     <!-- Status Message -->
-    <p v-if="statusMessage" class="text-sm text-gray-400 text-center max-w-xs">
+    <p v-if="statusMessage" class="text-sm text-spotify-subdued text-center max-w-xs">
       {{ statusMessage }}
     </p>
   </div>
@@ -79,6 +85,9 @@ const emit = defineEmits<{
 const loading = ref(false)
 const statusMessage = ref('')
 
+// Computed
+const voteThreshold = computed(() => Math.floor(props.totalMembers / 2) + 1)
+
 // Methods
 const handleNext = async () => {
   if (loading.value) return
@@ -93,7 +102,7 @@ const handleNext = async () => {
 
     if (response.success) {
       if (response.skipped) {
-        statusMessage.value = 'Track skipped!'
+        statusMessage.value = 'Titre passé !'
         emit('skipped')
       } else {
         statusMessage.value = response.message
@@ -106,7 +115,7 @@ const handleNext = async () => {
     }
   } catch (error) {
     console.error('Skip vote failed:', error)
-    statusMessage.value = 'Vote failed. Try again.'
+    statusMessage.value = 'Échec du vote. Réessayez.'
   } finally {
     loading.value = false
     

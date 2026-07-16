@@ -3,6 +3,8 @@ import { getServerSession } from '#auth'
 
 export default defineEventHandler(async (event) => {
   try {
+    assertSameOrigin(event)
+
     // Get the authenticated session
     const session = await getServerSession(event)
     
@@ -12,6 +14,16 @@ export default defineEventHandler(async (event) => {
         statusMessage: 'Not authenticated'
       })
     }
+
+    // Only Spotify users can create a group (guests have no playback to share).
+    if ((session.user as any).type === 'guest' || !(session as any).accessToken) {
+      throw createError({
+        statusCode: 403,
+        statusMessage: 'A Spotify account is required to create a group'
+      })
+    }
+
+    enforceRateLimit(rateLimitKey(event, 'group-create', session.user.email), 5, 60_000)
 
     // Create group with the authenticated user as admin
     const group = groupService.createGroup({
@@ -25,16 +37,22 @@ export default defineEventHandler(async (event) => {
     })
 
 
+    // Never leak the admin's Spotify tokens to the client.
     return {
       success: true,
       group: {
         id: group.id,
         code: group.code,
         name: group.name,
-        admin: group.admin
+        admin: {
+          id: group.admin.id,
+          name: group.admin.name,
+          image: group.admin.image
+        }
       }
     }
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.statusCode) throw error
     throw createError({
       statusCode: 500,
       statusMessage: 'Failed to create group'

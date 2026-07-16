@@ -3,41 +3,29 @@ import { SpotifyService } from '~/server/services/spotify'
 
 export default defineEventHandler(async (event) => {
   const groupId = getRouterParam(event, 'id')
-  
-  if (!groupId) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: 'Group ID required'
-    })
-  }
 
-  const group = groupService.getGroup(groupId)
-  if (!group) {
-    throw createError({
-      statusCode: 404,
-      statusMessage: 'Group not found'
-    })
-  }
+  // Only authenticated members may read the group's queue.
+  const { group } = await requireGroupMember(event, groupId)
 
   try {
     const spotifyService = new SpotifyService(
       group.admin.spotifyTokens.accessToken,
       group.admin.spotifyTokens.refreshToken,
-      groupId
+      groupId!
     )
     const queue = await spotifyService.getQueue()
-    
+
     return {
       success: true,
       queue: queue.queue || [],
       currentlyPlaying: queue.currently_playing
     }
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.statusCode) throw error
     console.error('Queue fetch error:', error)
     throw createError({
       statusCode: 500,
-      statusMessage: 'Failed to fetch queue',
-      data: error.message
+      statusMessage: 'Failed to fetch queue'
     })
   }
 })

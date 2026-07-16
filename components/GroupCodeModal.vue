@@ -32,51 +32,52 @@
         class="fixed inset-0 z-50 flex items-center justify-center p-4"
         @click="close"
       >
-        <div 
-          class="bg-gray-900 rounded-2xl shadow-2xl border border-gray-700 p-4 sm:p-6 w-full max-w-xs sm:max-w-sm"
+        <div
+          class="bg-spotify-elevated rounded-2xl shadow-2xl shadow-black/80 p-4 sm:p-6 w-full max-w-xs sm:max-w-sm"
           @click.stop
         >
           <!-- Header -->
           <div class="flex items-center justify-between mb-4 sm:mb-6">
-            <h3 class="text-lg sm:text-xl font-semibold text-white">Share Group</h3>
+            <h3 class="text-lg sm:text-xl font-extrabold tracking-tight text-white">Partager le groupe</h3>
             <button
               @click="close"
-              class="text-gray-400 hover:text-white transition-colors p-1"
+              class="text-spotify-subdued hover:text-white transition-colors p-1"
             >
               <Icon name="heroicons:x-mark" class="w-5 h-5" />
             </button>
           </div>
-          
+
           <!-- Group Code -->
           <div class="mb-4 sm:mb-6">
             <div class="flex items-center gap-2">
-              <div class="flex-1 bg-gray-800 rounded-lg px-3 py-2 sm:px-4 sm:py-3 font-mono text-base sm:text-lg text-center text-green-400 font-semibold border border-gray-600">
-                {{ groupCode }}
+              <div class="flex-1 bg-spotify-highlight rounded-xl px-3 py-3 sm:px-4 text-center">
+                <span class="font-mono text-2xl sm:text-3xl font-extrabold tracking-[0.25em] text-spotify-green">{{ groupCode }}</span>
               </div>
               <button
                 @click="copyCode"
+                :title="copied ? 'Copié !' : 'Copier le code'"
                 :class="[
-                  'px-2 py-2 sm:px-3 sm:py-3 rounded-lg transition-colors flex-shrink-0',
-                  copied ? 'bg-green-600 text-white' : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                  'w-12 h-12 rounded-full transition-colors flex-shrink-0 flex items-center justify-center',
+                  copied ? 'bg-spotify-green text-black' : 'bg-spotify-highlight hover:bg-spotify-press text-white'
                 ]"
               >
-                <Icon 
-                  :name="copied ? 'heroicons:check' : 'heroicons:clipboard-document'" 
-                  class="w-4 h-4 sm:w-5 sm:h-5" 
+                <Icon
+                  :name="copied ? 'heroicons:check' : 'heroicons:clipboard-document'"
+                  class="w-5 h-5"
                 />
               </button>
             </div>
           </div>
-          
+
           <!-- QR Code -->
           <div class="text-center">
-            <div class="bg-white rounded-xl p-3 sm:p-4 inline-block mb-3 mx-auto w-56 h-56 flex items-center justify-center overflow-hidden">
-              <Qrcode 
-                :value="joinUrl" 
+            <div class="bg-white rounded-2xl p-3 sm:p-4 mb-3 mx-auto w-56 h-56 flex items-center justify-center overflow-hidden">
+              <Qrcode
+                :value="joinUrl"
                 class="w-48 h-48 max-w-none"
               />
             </div>
-            <p class="text-xs text-gray-500">Scan to join group</p>
+            <p class="text-xs text-spotify-subdued">Scannez pour rejoindre le groupe</p>
           </div>
         </div>
       </div>

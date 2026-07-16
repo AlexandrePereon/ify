@@ -2,34 +2,36 @@ import { groupService } from '~/server/services/groups'
 
 export default defineEventHandler(async (event) => {
   const groupId = getRouterParam(event, 'id')
-  const query = getQuery(event)
-  const userId = query.userId as string
 
-  if (!groupId || !userId) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: 'Group ID and User ID required'
-    })
-  }
-
-  // Verify user is member of the group (business logic)
-  const group = groupService.getGroup(groupId)
-  if (!group || !group.members.some(m => m.id === userId)) {
-    throw createError({
-      statusCode: 403,
-      statusMessage: 'Not authorized to access this group'
-    })
-  }
+  // Identity comes from the signed session, never from the query string.
+  // (EventSource cannot set headers, but cookies are sent automatically.)
+  const { userId, group, isAdmin } = await requireGroupMember(event, groupId)
 
   // Create SSE stream (pure SSE logic)
   const eventStream = createEventStream(event)
 
   // Register stream in service
-  groupService.addEventStream(groupId, userId, eventStream)
+  groupService.addEventStream(groupId!, userId, eventStream)
 
   // Handle client disconnect
   eventStream.onClosed(async () => {
-    groupService.removeEventStream(groupId, userId)
+    groupService.removeEventStream(groupId!, userId)
+
+    // Guests that disconnect are removed from the roster after a short grace
+    // period (cancelled if they reconnect). The admin is never auto-removed —
+    // leaving is an explicit action, otherwise a blip would delete the group.
+    if (!isAdmin) {
+      groupService.scheduleMemberRemoval(groupId!, userId)
+    }
+
+    // Recompute the skip quorum for the remaining connected members.
+    const voteData = groupService.getVoteData(groupId!)
+    if (voteData) {
+      await groupService.broadcastToGroup(groupId!, {
+        type: 'vote_update',
+        data: voteData
+      })
+    }
     await eventStream.close()
   })
 
@@ -47,7 +49,7 @@ export default defineEventHandler(async (event) => {
         },
         timestamp: new Date().toISOString()
       })
-      
+
       await eventStream.push(initialMessage)
     } catch (pushError) {
       // Silent fail

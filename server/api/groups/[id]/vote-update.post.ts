@@ -3,32 +3,29 @@ import { groupService } from '~/server/services/groups'
 export default defineEventHandler(async (event) => {
   try {
     const groupId = getRouterParam(event, 'id')
-    const body = await readBody(event)
-    const { votes } = body
 
-    if (!groupId || !votes) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Group ID and votes data required'
+    // Only members may trigger a broadcast, and the payload is authoritative
+    // server state — never client-supplied vote counts.
+    const { group } = await requireGroupMember(event, groupId)
+
+    const voteData = groupService.getVoteData(group.id)
+    if (voteData) {
+      await groupService.broadcastToGroup(group.id, {
+        type: 'vote_update',
+        data: voteData
       })
     }
-
-    // Broadcast vote update to all group members
-    await groupService.broadcastToGroup(groupId, {
-      type: 'vote_update',
-      data: votes
-    })
-
 
     return {
       success: true,
       message: 'Vote update sent to all group members'
     }
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.statusCode) throw error
     console.error('Vote update error:', error)
     throw createError({
       statusCode: 500,
-      statusMessage: `Failed to send vote update: ${error.message || error}`
+      statusMessage: 'Failed to send vote update'
     })
   }
 })

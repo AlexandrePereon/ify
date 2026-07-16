@@ -15,45 +15,45 @@ export class SpotifyService {
     this.clientSecret = config.spotifyClientSecret
   }
 
-  // Handle token refresh when needed
+  // Handle token refresh when needed.
+  // Returns true if the access token was refreshed (caller should retry).
+  // Throws a tagged `authExpired` error when the refresh token itself is
+  // rejected (revoked/expired) — that state is terminal and callers use it to
+  // close the group. Transient network errors propagate as generic errors.
   private async handleTokenRefresh(response: Response) {
-    if (response.status === 401) {
-      try {
-        const refreshResponse = await fetch('https://accounts.spotify.com/api/token', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Authorization': `Basic ${Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64')}`
-          },
-          body: new URLSearchParams({
-            grant_type: 'refresh_token',
-            refresh_token: this.refreshToken
-          })
-        })
-        
-        if (!refreshResponse.ok) {
-          throw new Error(`Token refresh failed: ${refreshResponse.status}`)
-        }
-        
-        const data = await refreshResponse.json()
-        const newAccessToken = data.access_token
-        
-        // Update instance token
-        this.accessToken = newAccessToken
-        
-        // Update the group's stored token
-        const { groupService } = await import('./groups.js')
-        const group = groupService.getGroup(this.groupId)
-        if (group) {
-          group.admin.spotifyTokens.accessToken = newAccessToken
-        }
-        
-        return true
-      } catch (refreshError) {
-        return false
-      }
+    if (response.status !== 401) return false
+
+    const refreshResponse = await fetch('https://accounts.spotify.com/api/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': `Basic ${Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64')}`
+      },
+      body: new URLSearchParams({
+        grant_type: 'refresh_token',
+        refresh_token: this.refreshToken
+      })
+    })
+
+    if (!refreshResponse.ok) {
+      // The refresh token is no longer valid — the admin must re-authenticate.
+      throw Object.assign(new Error('Spotify authentication expired'), { authExpired: true })
     }
-    return false
+
+    const data = await refreshResponse.json()
+    const newAccessToken = data.access_token
+
+    // Update instance token
+    this.accessToken = newAccessToken
+
+    // Update the group's stored token
+    const { groupService } = await import('./groups.js')
+    const group = groupService.getGroup(this.groupId)
+    if (group) {
+      group.admin.spotifyTokens.accessToken = newAccessToken
+    }
+
+    return true
   }
 
   // Make authenticated request to Spotify API

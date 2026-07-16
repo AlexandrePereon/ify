@@ -5,13 +5,9 @@ export default defineEventHandler(async (event) => {
   try {
     const groupId = getRouterParam(event, 'id')
     const query = getQuery(event)
-    
-    if (!groupId) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Group ID required'
-      })
-    }
+
+    // Only authenticated members of this group may search with the admin's tokens.
+    const { userId } = await requireGroupMember(event, groupId)
 
     if (!query.q) {
       throw createError({
@@ -20,8 +16,11 @@ export default defineEventHandler(async (event) => {
       })
     }
 
+    // Protect the admin's Spotify API quota from being burned by a single member.
+    enforceRateLimit(rateLimitKey(event, `search:${groupId}`, userId), 30, 10_000)
+
     // Get admin's Spotify tokens
-    const tokens = groupService.getAdminTokens(groupId)
+    const tokens = groupService.getAdminTokens(groupId!)
     if (!tokens) {
       throw createError({
         statusCode: 404,
@@ -31,9 +30,9 @@ export default defineEventHandler(async (event) => {
 
     // Use admin's tokens to search Spotify
     const spotifyService = new SpotifyService(
-      tokens.accessToken, 
-      tokens.refreshToken, 
-      groupId
+      tokens.accessToken,
+      tokens.refreshToken,
+      groupId!
     )
     const tracks = await spotifyService.searchTracks(query.q as string, 20)
 
@@ -41,11 +40,12 @@ export default defineEventHandler(async (event) => {
       success: true,
       tracks
     }
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.statusCode) throw error
     console.error('Search API error:', error)
     throw createError({
       statusCode: 500,
-      statusMessage: `Search failed: ${error.message || error}`
+      statusMessage: 'Search failed'
     })
   }
 })

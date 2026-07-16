@@ -1,105 +1,91 @@
 <template>
-  <div class="spotify-main h-screen overflow-hidden">
-    <div class="container mx-auto px-4 py-16 h-full">
-      <div class="max-w-md mx-auto text-center">
-        <!-- Logo/Title -->
-        <div class="mb-12">
-          <h1 class="text-6xl font-bold text-white mb-4">
-            <span class="text-green-500">I</span>FY
-          </h1>
-          <p class="text-gray-400 text-lg">
-            Écoutez Spotify ensemble, en temps réel
-          </p>
-        </div>
-
-        <!-- Authentication Status -->
-        <div v-if="status === 'loading'" class="mb-8">
-          <div class="text-white">
-            <Icon name="heroicons:arrow-path" class="w-8 h-8 animate-spin mx-auto mb-2" />
-            <p>Chargement...</p>
-          </div>
-        </div>
-
-        <!-- Not authenticated -->
-        <div v-else-if="status === 'unauthenticated'" class="space-y-6">
-          <button
-            @click="createSpotifyGroup"
-            class="spotify-button w-full"
-          >
-            <Icon name="simple-icons:spotify" class="w-5 h-5" />
-            <span>Créer un groupe via Spotify</span>
-          </button>
-          
-          <div class="text-center">
-            <div class="flex items-center mb-4">
-              <div class="flex-1 h-px bg-gray-600"></div>
-              <span class="px-4 text-gray-400 text-sm">ou</span>
-              <div class="flex-1 h-px bg-gray-600"></div>
-            </div>
-            
-            <button
-              @click="() => navigateTo('/join')"
-              class="w-full px-4 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors font-medium"
-            >
-              Rejoindre un groupe
-            </button>
-          </div>
-        </div>
-
-        <!-- Authenticated - Show options -->
-        <div v-else-if="status === 'authenticated'" class="space-y-6">
-          <div class="mb-6 p-4 bg-gray-900 rounded-lg">
-            <div class="text-center">
-              <p class="text-white mb-2">Connecté en tant que :</p>
-              <p class="text-green-500 font-semibold">{{ data?.user?.name || data?.user?.email }}</p>
-              <div class="flex items-center justify-center mt-2">
-                <Icon
-                  :name="data?.user?.type === 'guest' ? 'heroicons:user' : 'simple-icons:spotify'"
-                  :class="data?.user?.type === 'guest' ? 'w-4 h-4 text-gray-400' : 'w-4 h-4 text-green-500'"
-                />
-                <span class="ml-2 text-sm text-gray-400">
-                  {{ data?.user?.type === 'guest' ? 'Invité' : 'Spotify' }}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Disconnect Button -->
-          <button
-            @click="() => signOut({ redirect: false })"
-            class="w-full mb-6 px-4 py-2 text-gray-400 hover:text-red-400 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors border border-gray-600"
-          >
-            <Icon name="heroicons:arrow-right-start-on-rectangle" class="w-4 h-4 inline mr-2" />
-            Se déconnecter
-          </button>
-
-          <!-- Create Group Button (only for Spotify users) -->
-          <button
-            v-if="data?.user?.type !== 'guest'"
-            @click="createSpotifyGroup"
-            class="spotify-button w-full"
-          >
-            <Icon name="simple-icons:spotify" class="w-5 h-5" />
-            <span>Créer un nouveau groupe</span>
-          </button>
-
-          <div class="text-center">
-            <div v-if="data?.user?.type !== 'guest'" class="flex items-center mb-4">
-              <div class="flex-1 h-px bg-gray-600"></div>
-              <span class="px-4 text-gray-400 text-sm">ou</span>
-              <div class="flex-1 h-px bg-gray-600"></div>
-            </div>
-
-            <button
-              @click="() => navigateTo('/join')"
-              class="w-full px-4 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors font-medium"
-            >
-              Rejoindre un groupe
-            </button>
-          </div>
-        </div>
-
+  <div class="spotify-main min-h-screen flex items-center justify-center px-4 py-12">
+    <div class="max-w-md w-full mx-auto text-center">
+      <!-- Logo/Title -->
+      <div class="mb-12">
+        <h1 class="text-6xl font-extrabold tracking-tighter text-white mb-4 drop-shadow-[0_0_30px_rgba(29,185,84,0.35)]">
+          <span class="text-spotify-green">I</span>FY
+        </h1>
+        <p class="text-spotify-subdued text-lg">
+          Écoutez Spotify ensemble, en temps réel
+        </p>
       </div>
+
+      <!-- Authentication Status -->
+      <div v-if="status === 'loading'" class="mb-8">
+        <div class="text-white">
+          <Icon name="heroicons:arrow-path" class="w-8 h-8 animate-spin mx-auto mb-2 text-spotify-green" />
+          <p class="text-spotify-subdued">Chargement...</p>
+        </div>
+      </div>
+
+      <!-- Not authenticated -->
+      <div v-else-if="status === 'unauthenticated'" class="space-y-6">
+        <button
+          class="spotify-button w-full"
+          @click="createSpotifyGroup"
+        >
+          <Icon name="simple-icons:spotify" class="w-5 h-5" />
+          <span>Créer un groupe via Spotify</span>
+        </button>
+
+        <div class="flex items-center">
+          <div class="flex-1 h-px bg-white/10"/>
+          <span class="px-4 text-spotify-subdued text-sm">ou</span>
+          <div class="flex-1 h-px bg-white/10"/>
+        </div>
+
+        <button
+          class="spotify-button-secondary w-full"
+          @click="() => navigateTo('/join')"
+        >
+          Rejoindre un groupe
+        </button>
+      </div>
+
+      <!-- Authenticated - Show options -->
+      <div v-else-if="status === 'authenticated'" class="space-y-6">
+        <UserChip
+          :name="data?.user?.name || data?.user?.email || 'Utilisateur'"
+          :image="data?.user?.image"
+          :type="data?.user?.type || 'spotify'"
+          label="Connecté en tant que"
+          class="mb-8"
+        />
+
+        <!-- Create Group Button (only for Spotify users) -->
+        <button
+          v-if="data?.user?.type !== 'guest'"
+          class="spotify-button w-full"
+          @click="createSpotifyGroup"
+        >
+          <Icon name="simple-icons:spotify" class="w-5 h-5" />
+          <span>Créer un nouveau groupe</span>
+        </button>
+
+        <div v-if="data?.user?.type !== 'guest'" class="flex items-center">
+          <div class="flex-1 h-px bg-white/10"/>
+          <span class="px-4 text-spotify-subdued text-sm">ou</span>
+          <div class="flex-1 h-px bg-white/10"/>
+        </div>
+
+        <button
+          class="spotify-button-secondary w-full"
+          @click="() => navigateTo('/join')"
+        >
+          Rejoindre un groupe
+        </button>
+
+        <!-- Disconnect link -->
+        <button
+          class="mt-10 inline-flex items-center gap-2 text-sm text-spotify-subdued hover:text-white transition-colors"
+          @click="() => signOut({ redirect: false })"
+        >
+          <Icon name="heroicons:arrow-right-start-on-rectangle" class="w-4 h-4" />
+          Se déconnecter
+        </button>
+      </div>
+
     </div>
   </div>
 </template>
@@ -132,8 +118,6 @@ useHead({
   ]
 })
 
-// State
-const creatingGroup = ref(false)
 
 // Methods
 const createSpotifyGroup = async () => {

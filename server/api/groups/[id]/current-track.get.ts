@@ -4,17 +4,13 @@ import { SpotifyService } from '~/server/services/spotify'
 export default defineEventHandler(async (event) => {
   try {
     const groupId = getRouterParam(event, 'id')
-    
-    if (!groupId) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Group ID required'
-      })
-    }
+
+    // Only authenticated members may read the group's playback state.
+    await requireGroupMember(event, groupId)
 
     // Get admin's Spotify tokens
-    const tokens = groupService.getAdminTokens(groupId)
-    
+    const tokens = groupService.getAdminTokens(groupId!)
+
     if (!tokens) {
       throw createError({
         statusCode: 404,
@@ -24,22 +20,25 @@ export default defineEventHandler(async (event) => {
 
     // Use admin's tokens to get current playback
     const spotifyService = new SpotifyService(
-      tokens.accessToken, 
-      tokens.refreshToken, 
-      groupId
+      tokens.accessToken,
+      tokens.refreshToken,
+      groupId!
     )
-    
+
     const playback = await spotifyService.getCurrentPlayback()
 
     return {
       success: true,
-      currentTrack: playback?.item || null
+      currentTrack: playback?.item || null,
+      progressMs: playback?.progress_ms ?? null,
+      isPlaying: playback?.is_playing ?? false
     }
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.statusCode) throw error
     console.error('Current track error:', error)
     throw createError({
       statusCode: 500,
-      statusMessage: `Failed to get current track: ${error.message || error}`
+      statusMessage: 'Failed to get current track'
     })
   }
 })

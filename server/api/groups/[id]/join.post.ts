@@ -4,42 +4,18 @@ import { spotifyPollingService } from '~/server/services/spotify-polling'
 export default defineEventHandler(async (event) => {
   try {
     const groupId = getRouterParam(event, 'id')
-    const body = await readBody(event)
-    const { userId } = body
 
-    if (!groupId || !userId) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Group ID and User ID required'
-      })
-    }
-
-    // Verify user is member of the group
-    const group = groupService.getGroup(groupId)
-    
-    if (!group) {
-      throw createError({
-        statusCode: 404,
-        statusMessage: 'Group not found'
-      })
-    }
-    
-    if (!group.members.some(m => m.id === userId)) {
-      throw createError({
-        statusCode: 403,
-        statusMessage: 'Not authorized to join this group'
-      })
-    }
+    // Membership is derived from the signed session, not from the request body.
+    const { group } = await requireGroupMember(event, groupId)
 
     // Start polling for this group if not already started
-    if (!spotifyPollingService.getActiveGroups().includes(groupId)) {
-      spotifyPollingService.startPolling(groupId)
+    if (!spotifyPollingService.getActiveGroups().includes(group.id)) {
+      spotifyPollingService.startPolling(group.id)
     }
-
 
     return {
       success: true,
-      groupId,
+      groupId: group.id,
       group: {
         id: group.id,
         name: group.name,
@@ -48,11 +24,12 @@ export default defineEventHandler(async (event) => {
         currentTrack: group.currentTrack
       }
     }
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.statusCode) throw error
     console.error('Join group error:', error)
     throw createError({
       statusCode: 500,
-      statusMessage: `Failed to join group: ${error.message || error}`
+      statusMessage: 'Failed to join group'
     })
   }
 })

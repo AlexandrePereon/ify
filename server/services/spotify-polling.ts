@@ -105,7 +105,9 @@ class SpotifyPollingService {
 
         // Notify SSE clients about playback update
         const notificationData = {
-          currentTrack: playbackState?.item || null
+          currentTrack: playbackState?.item || null,
+          progressMs: (playbackState as any)?.progress_ms ?? null,
+          isPlaying: (playbackState as any)?.is_playing ?? false
         }
 
         await this.notifyClients(groupId, notificationData, 'playback_update')
@@ -121,13 +123,17 @@ class SpotifyPollingService {
         }, 'queue_update')
       }
 
-    } catch (error) {
-      console.error(`Error polling Spotify for group ${groupId}:`, error)
-      
-      // If token expired, stop polling
-      if (error.statusCode === 401) {
+    } catch (error: any) {
+      // The admin's refresh token was rejected — playback can no longer be
+      // controlled, so close the group and tell everyone.
+      if (error?.authExpired) {
+        console.warn(`Admin Spotify session expired for group ${groupId}, closing group`)
         this.stopPolling(groupId)
+        await groupService.closeGroup(groupId, 'The host\'s Spotify session expired')
+        return
       }
+
+      console.error(`Error polling Spotify for group ${groupId}:`, error)
     }
   }
 

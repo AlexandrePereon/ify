@@ -1,6 +1,6 @@
 <template>
   <div :class="[
-    'text-gray-500 space-y-1',
+    'text-spotify-subdued/70 space-y-1',
     sizeClasses
   ]">
     <!-- Album Name -->
